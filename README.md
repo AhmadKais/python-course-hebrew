@@ -19,6 +19,8 @@
 | 4 | עיצוב משתנים וכתיבת קוד נקי | [פתח](https://ahmadkais.github.io/python-course-hebrew/presentations/html/04_unit4_naming_clean_code.html) | [הורד](presentations/pdf/04_unit4_naming_clean_code.pdf) |
 | 5 | קלט ופלט ועבודה עם מחרוזות | [פתח](https://ahmadkais.github.io/python-course-hebrew/presentations/html/05_unit5_io_strings.html) | [הורד](presentations/pdf/05_unit5_io_strings.pdf) |
 | 6 | ביטויים בוליאניים ותנאים (if) | [פתח](https://ahmadkais.github.io/python-course-hebrew/presentations/html/06_unit6_boolean_if.html) | — |
+| 7 | לולאות (for, while) | [פתח](https://ahmadkais.github.io/python-course-hebrew/presentations/html/07_unit7_loops.html) | — |
+| 8 | אופרטורים לוגיים וסיביים | [פתח](https://ahmadkais.github.io/python-course-hebrew/presentations/html/08_unit8_logical_bitwise.html) | — |
 | ★ | סיכום יחידות 0–5 | [פתח](https://ahmadkais.github.io/python-course-hebrew/presentations/html/summary_units_0-5.html) | — |
 
 ## 📚 חומרי לימוד (Study materials)

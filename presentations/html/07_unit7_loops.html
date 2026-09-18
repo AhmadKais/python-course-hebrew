@@ -1,0 +1,3956 @@
+<title>יחידה 7 · לולאות (for, while)</title>
+<style>
+/* ============================================================
+   DESIGN SYSTEM
+   Concept: the deck itself is staged as a code editor / terminal
+   window (title-bar dots, file tab) — grounded in the subject
+   (learning to code) rather than a generic slide template.
+   Committed single dark "editor" world by design (like a themed
+   terminal), the same way a themed arcade screen stays single-mode.
+   Font stack is an intentional native Hebrew system stack: the
+   Artifact sandbox blocks external font fetches, so rather than
+   link a webfont that silently falls back, we design directly
+   for the Hebrew system faces students' machines already have.
+   ============================================================ */
+:root{
+  --bg:            #0f1420;
+  --bg-panel:      #161c2c;
+  --bg-panel-2:    #1b2338;
+  --bg-titlebar:   #10151f;
+  --ink:           #e9edf6;
+  --ink-dim:       #939bb8;
+  --ink-faint:     #5c6485;
+  --line:          #2a3350;
+  --line-soft:     #212a44;
+
+  --blue:          #55c6f2;
+  --blue-dim:      #2d4a63;
+  --gold:          #ffd166;
+  --gold-dim:      #5a4a2c;
+  --coral:         #ff7a7a;
+  --coral-dim:     #5a2f34;
+  --green:         #6fe3b4;
+  --green-dim:     #204538;
+  --violet:        #bda2f2;
+  --violet-dim:    #3a2f57;
+
+  --font-display: "Rubik", "Segoe UI Variable Display", "Segoe UI", "Arial Hebrew", "Noto Sans Hebrew", "Heebo", "Arial", sans-serif;
+  --font-body:    "Assistant", "Segoe UI", "Arial Hebrew", "Noto Sans Hebrew", "Heebo", "Arial", sans-serif;
+  --font-mono:    "JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace, "SF Mono", Consolas, "Courier New", monospace;
+
+  --radius: 18px;
+  --shadow: 0 30px 80px -20px rgba(0,0,0,.65), 0 10px 30px -12px rgba(0,0,0,.5);
+}
+:root[data-theme="light"], :root[data-theme="dark"]{
+  /* Deliberately single-themed (see note above) — both branches keep the editor palette. */
+  --bg:#0f1420; --bg-panel:#161c2c; --bg-panel-2:#1b2338; --bg-titlebar:#10151f;
+  --ink:#e9edf6; --ink-dim:#939bb8; --ink-faint:#5c6485; --line:#2a3350; --line-soft:#212a44;
+}
+
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0;
+  background:
+    radial-gradient(1100px 620px at 12% -8%, #1a2440 0%, transparent 60%),
+    radial-gradient(900px 560px at 108% 8%, #1c1f3a 0%, transparent 55%),
+    var(--bg);
+  color:var(--ink);
+  font-family:var(--font-body);
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{ background:var(--blue); color:#0f1420; }
+
+/* ---------- stage & deck window ---------- */
+.stage{
+  position:fixed; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  padding:clamp(10px,3vh,34px) clamp(10px,3vw,34px);
+}
+.deck{
+  position:relative;
+  width:min(1180px, 96vw);
+  height:min(720px, 92vh);
+  background:linear-gradient(180deg, var(--bg-panel), var(--bg-panel-2));
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  display:flex; flex-direction:column;
+  overflow:hidden;
+}
+.titlebar{
+  display:flex; align-items:center; gap:14px;
+  padding:12px 18px;
+  background:var(--bg-titlebar);
+  border-bottom:1px solid var(--line);
+  direction:ltr; /* window chrome is a UI artifact, always LTR like a real editor */
+}
+.tb-dots{ display:flex; gap:7px; }
+.tb-dots span{ width:11px; height:11px; border-radius:50%; display:block; }
+.tb-dots span:nth-child(1){ background:#ff6159; }
+.tb-dots span:nth-child(2){ background:#ffbd2e; }
+.tb-dots span:nth-child(3){ background:#28c93f; }
+.tb-tab{
+  font-family:var(--font-mono);
+  font-size:12.5px;
+  color:var(--ink-dim);
+  background:var(--bg-panel);
+  border:1px solid var(--line);
+  border-bottom:none;
+  padding:5px 12px 6px;
+  border-radius:8px 8px 0 0;
+  margin-inline-start:6px;
+}
+.tb-tab b{ color:var(--gold); font-weight:600; }
+.tb-spacer{ flex:1; }
+.tb-progress-label{
+  font-family:var(--font-mono); font-size:12px; color:var(--ink-faint);
+  font-variant-numeric:tabular-nums;
+}
+
+.progress-track{ height:3px; background:var(--line-soft); position:relative; }
+.progress-fill{ position:absolute; inset-inline-start:0; top:0; bottom:0; width:0%;
+  background:linear-gradient(90deg, var(--blue), var(--green));
+  transition:width .35s ease; }
+
+/* ---------- slide viewport ---------- */
+.viewport{ position:relative; flex:1; overflow:hidden; }
+.slide{
+  position:absolute; inset:0;
+  display:flex; flex-direction:column;
+  padding:clamp(26px,4.4vh,52px) clamp(34px,6vw,76px);
+  opacity:0; transform:translateY(14px) scale(.99);
+  pointer-events:none;
+  transition:opacity .38s ease, transform .38s ease;
+  overflow-y:auto;
+  direction:rtl;
+}
+.slide.active{ opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
+@media (prefers-reduced-motion: reduce){
+  .slide{ transition:opacity .01s linear; transform:none; }
+}
+
+.eyebrow{
+  font-family:var(--font-mono); font-size:13px; letter-spacing:.02em;
+  color:var(--blue); display:flex; align-items:center; gap:8px; margin-bottom:14px;
+  direction:ltr; justify-content:flex-end;
+}
+.eyebrow .dot{ width:6px; height:6px; border-radius:50%; background:var(--blue); }
+
+h1.slide-title{
+  font-family:var(--font-display); font-weight:700;
+  font-size:clamp(28px,4.4vh,44px); line-height:1.15; margin:0 0 .4em;
+  text-wrap:balance; color:var(--ink);
+}
+h1.slide-title .accent{ color:var(--gold); }
+h2.slide-sub{
+  font-family:var(--font-body); font-weight:500; color:var(--ink-dim);
+  font-size:clamp(15px,2.2vh,19px); margin:0 0 1.1em; line-height:1.6; max-width:62ch;
+}
+
+.body-text{ font-size:clamp(15px,2.1vh,18px); line-height:1.75; color:var(--ink); max-width:70ch; }
+.body-text + .body-text{ margin-top:.8em; }
+
+/* ---------- title slide ---------- */
+.slide.title-slide{ align-items:center; justify-content:center; text-align:center; }
+.title-slide .kicker{
+  font-family:var(--font-mono); color:var(--green); font-size:14px;
+  border:1px solid var(--green-dim); background:rgba(111,227,180,.08);
+  padding:6px 16px; border-radius:999px; margin-bottom:26px; direction:ltr;
+}
+.title-slide h1{
+  font-family:var(--font-display); font-weight:800;
+  font-size:clamp(38px,7vh,68px); line-height:1.08; margin:0 0 .3em; text-wrap:balance;
+}
+.title-slide .py-mark{ color:var(--blue); }
+.title-slide .py-mark2{ color:var(--gold); }
+.title-slide p{ color:var(--ink-dim); font-size:clamp(16px,2.4vh,21px); max-width:56ch; margin:0 auto; line-height:1.6; }
+.prompt-line{
+  margin-top:36px; font-family:var(--font-mono); color:var(--ink-faint); font-size:15px; direction:ltr;
+}
+.prompt-line .caret{ display:inline-block; width:9px; height:1.1em; background:var(--green); margin-inline-start:4px; vertical-align:-2px;
+  animation:blink 1.1s steps(1) infinite; }
+@keyframes blink{ 50%{ opacity:0; } }
+@media (prefers-reduced-motion: reduce){ .prompt-line .caret{ animation:none; } }
+
+/* ---------- icon grid (industries etc.) ---------- */
+.grid{ display:grid; gap:16px; margin-top:8px; }
+.grid.cols-4{ grid-template-columns:repeat(4,1fr); }
+.grid.cols-3{ grid-template-columns:repeat(3,1fr); }
+.grid.cols-2{ grid-template-columns:repeat(2,1fr); }
+.card{
+  background:var(--bg-titlebar); border:1px solid var(--line); border-radius:14px;
+  padding:16px 16px 15px; display:flex; flex-direction:column; gap:8px;
+}
+.card .icon{ width:34px; height:34px; }
+.card h3{ margin:2px 0 0; font-family:var(--font-display); font-size:15.5px; font-weight:700; color:var(--ink); }
+.card p{ margin:0; font-size:13.5px; line-height:1.55; color:var(--ink-dim); }
+.card.blue .icon{ color:var(--blue); } .card.blue{ border-color:var(--blue-dim); }
+.card.gold .icon{ color:var(--gold); } .card.gold{ border-color:var(--gold-dim); }
+.card.coral .icon{ color:var(--coral); } .card.coral{ border-color:var(--coral-dim); }
+.card.green .icon{ color:var(--green); } .card.green{ border-color:var(--green-dim); }
+.card.violet .icon{ color:var(--violet); } .card.violet{ border-color:var(--violet-dim); }
+
+/* ---------- badge chips (companies, tags) ---------- */
+.chiprow{ display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; direction:rtl; }
+.chip{
+  font-family:var(--font-mono); font-size:13.5px; color:var(--ink);
+  background:var(--bg-titlebar); border:1px solid var(--line);
+  padding:7px 14px; border-radius:999px; direction:ltr;
+}
+
+/* ---------- two-col layout ---------- */
+.split{ display:grid; grid-template-columns:1.1fr .9fr; gap:34px; align-items:center; flex:1; }
+.split .art{ display:flex; align-items:center; justify-content:center; }
+
+/* ---------- code block ---------- */
+.codewrap{
+  background:#0c1019; border:1px solid var(--line); border-radius:12px; overflow:hidden;
+  direction:ltr; text-align:left;
+}
+.codewrap .chead{
+  display:flex; align-items:center; gap:8px; padding:8px 12px; background:var(--bg-titlebar);
+  border-bottom:1px solid var(--line); font-family:var(--font-mono); font-size:11.5px; color:var(--ink-faint);
+}
+.codewrap .chead b{ color:var(--green); font-weight:600; }
+pre.code{
+  margin:0; padding:16px 18px; font-family:var(--font-mono); font-size:14.5px; line-height:1.7;
+  overflow-x:auto; direction:ltr; text-align:left; white-space:pre;
+}
+.tok-kw{ color:var(--violet); font-weight:600; }
+.tok-str{ color:var(--gold); }
+.tok-num{ color:var(--coral); }
+.tok-com{ color:var(--ink-faint); font-style:italic; }
+.tok-fn{ color:var(--blue); }
+.tok-var{ color:#9fd3ff; }
+.tok-punc{ color:var(--ink-dim); }
+
+.outwrap{ background:#0a0d14; border:1px solid var(--line); border-radius:12px; overflow:hidden; direction:ltr; text-align:left; }
+.outwrap .ohead{ padding:8px 12px; background:var(--bg-titlebar); border-bottom:1px solid var(--line);
+  font-family:var(--font-mono); font-size:11.5px; color:var(--ink-faint); }
+.outwrap .obody{ padding:14px 18px; font-family:var(--font-mono); font-size:14.5px; color:var(--green); white-space:pre-wrap; line-height:1.7; }
+
+/* ---------- exercise list ---------- */
+.exlist{ list-style:none; margin:10px 0 0; padding:0; display:flex; flex-direction:column; gap:12px; }
+.exlist li{
+  display:flex; gap:14px; align-items:flex-start;
+  background:var(--bg-titlebar); border:1px solid var(--line); border-radius:12px; padding:13px 16px;
+}
+.exnum{
+  flex:none; width:26px; height:26px; border-radius:8px; background:var(--bg-panel-2);
+  border:1px solid var(--line); display:flex; align-items:center; justify-content:center;
+  font-family:var(--font-mono); font-size:13px; color:var(--ink-dim); font-variant-numeric:tabular-nums;
+}
+.exbody{ flex:1; font-size:15px; line-height:1.6; }
+.exbody code{ font-family:var(--font-mono); background:var(--bg-panel-2); padding:1px 6px; border-radius:5px; color:var(--gold); direction:ltr; unicode-bidi:isolate; display:inline-block; }
+.tag{
+  flex:none; font-family:var(--font-mono); font-size:11px; padding:3px 9px; border-radius:999px;
+  height:fit-content; direction:ltr;
+}
+.tag.easy{ background:var(--green-dim); color:var(--green); }
+.tag.med{ background:var(--gold-dim); color:var(--gold); }
+.tag.hard{ background:var(--coral-dim); color:var(--coral); }
+
+/* ---------- callouts ---------- */
+.callout{ display:flex; gap:12px; align-items:flex-start; padding:14px 16px; border-radius:12px; margin-top:14px; }
+.callout .icon{ width:22px; height:22px; flex:none; margin-top:2px; }
+.callout p{ margin:0; font-size:14.5px; line-height:1.6; }
+.callout.warn{ background:rgba(255,122,122,.08); border:1px solid var(--coral-dim); }
+.callout.warn .icon{ color:var(--coral); }
+.callout.tip{ background:rgba(111,227,180,.08); border:1px solid var(--green-dim); }
+.callout.tip .icon{ color:var(--green); }
+
+ul.plain, ol.plain{ margin:10px 0 0; padding-inline-start:1.3em; display:flex; flex-direction:column; gap:9px; }
+ul.plain li, ol.plain li{ font-size:15.5px; line-height:1.65; }
+ul.plain li::marker{ color:var(--blue); }
+strong.hl{ color:var(--gold); font-weight:700; }
+strong.hl2{ color:var(--blue); font-weight:700; }
+
+/* ---------- roadmap timeline ---------- */
+.roadmap{ display:flex; flex-direction:column; gap:10px; margin-top:10px; }
+.rgroup{ display:flex; gap:14px; align-items:stretch; }
+.rgroup .rlabel{
+  flex:none; width:118px; display:flex; align-items:center; justify-content:center; text-align:center;
+  font-family:var(--font-display); font-weight:700; font-size:13.5px; border-radius:10px; padding:10px 6px;
+}
+.rgroup .ritems{ flex:1; display:flex; flex-wrap:wrap; gap:8px; align-content:center; }
+.rchip{ background:var(--bg-titlebar); border:1px solid var(--line); border-radius:8px; padding:7px 12px; font-size:13px; color:var(--ink-dim); }
+.rgroup.p1 .rlabel{ background:var(--blue-dim); color:var(--blue); }
+.rgroup.p2 .rlabel{ background:var(--gold-dim); color:var(--gold); }
+.rgroup.p3 .rlabel{ background:var(--violet-dim); color:var(--violet); }
+.rgroup.p4 .rlabel{ background:var(--green-dim); color:var(--green); }
+
+/* ---------- controls ---------- */
+.controls{
+  position:absolute; bottom:16px; inset-inline-end:16px; display:flex; gap:8px; z-index:5;
+  direction:ltr;
+}
+.ctrl-btn{
+  width:40px; height:40px; border-radius:10px; border:1px solid var(--line);
+  background:var(--bg-titlebar); color:var(--ink-dim); display:flex; align-items:center; justify-content:center;
+  cursor:pointer; transition:background .15s, color .15s, border-color .15s;
+}
+.ctrl-btn:hover{ background:var(--bg-panel-2); color:var(--ink); border-color:var(--blue-dim); }
+.ctrl-btn:focus-visible{ outline:2px solid var(--blue); outline-offset:2px; }
+.ctrl-btn svg{ width:18px; height:18px; }
+
+.dots-nav{ position:absolute; bottom:20px; inset-inline-start:20px; display:flex; gap:6px; z-index:5; direction:ltr; }
+.dots-nav button{
+  width:7px; height:7px; border-radius:50%; border:none; background:var(--line); cursor:pointer; padding:0;
+}
+.dots-nav button.on{ background:var(--blue); width:20px; border-radius:4px; }
+
+.hint{ position:absolute; bottom:18px; left:50%; transform:translateX(-50%); font-family:var(--font-mono);
+  font-size:11.5px; color:var(--ink-faint); z-index:4; }
+
+@media (max-width:760px){
+  .split{ grid-template-columns:1fr; }
+  .grid.cols-4{ grid-template-columns:repeat(2,1fr); }
+  .grid.cols-3{ grid-template-columns:repeat(2,1fr); }
+}
+
+/* ---------- trace table (unit 7+) ---------- */
+table.trace{ border-collapse:collapse; margin-top:12px; font-size:14px; direction:rtl; }
+table.trace th, table.trace td{ border:1px solid var(--line); padding:7px 14px; text-align:center; }
+table.trace th{ background:var(--bg-titlebar); color:var(--ink-dim); font-family:var(--font-display); font-weight:700; font-size:13px; }
+table.trace td{ font-family:var(--font-mono); color:var(--ink); direction:ltr; unicode-bidi:isolate; }
+table.trace td.t{ color:var(--green); } table.trace td.f{ color:var(--coral); }
+table.trace td.o{ color:var(--gold); }
+</style>
+
+<div class="stage">
+  <div class="deck" id="deck">
+    <div class="titlebar">
+      <div class="tb-dots"><span></span><span></span><span></span></div>
+      <div class="tb-tab"><b>py</b>_course — <span id="tb-name">00_intro.py</span></div>
+      <div class="tb-spacer"></div>
+      <div class="tb-progress-label"><span id="pg-cur">1</span> / <span id="pg-total">1</span></div>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="viewport" id="viewport"></div>
+    <div class="dots-nav" id="dotsNav"></div>
+    <div class="controls">
+      <button class="ctrl-btn" id="btnFs" title="מסך מלא" aria-label="מסך מלא">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4M20 15v4a1 1 0 0 1-1 1h-4"/></svg>
+      </button>
+      <button class="ctrl-btn" id="btnPrev" title="הקודם" aria-label="הקודם">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <button class="ctrl-btn" id="btnNext" title="הבא" aria-label="הבא">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<svg width="0" height="0" style="position:absolute">
+<defs>
+<symbol id="ic-brain" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M9 4a3 3 0 0 0-3 3v.3A3 3 0 0 0 4 10v1a3 3 0 0 0 1 2.2V15a3 3 0 0 0 3 3h1v2M9 4a3 3 0 0 1 3 3v13M9 4h1M4 10h2M4.2 13.5H7"/>
+  <path d="M15 4a3 3 0 0 1 3 3v.3a3 3 0 0 1 2 2.7v1a3 3 0 0 1-1 2.2V15a3 3 0 0 1-3 3h-1"/>
+  <path d="M15 4a3 3 0 0 0-3 3M18 10h2M19.8 13.5H17"/>
+</symbol>
+<symbol id="ic-terminal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/>
+</symbol>
+<symbol id="ic-cpu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9" y="9" width="6" height="6" rx="1"/>
+  <path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/>
+</symbol>
+<symbol id="ic-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.7 2.6 4 5.7 4 9s-1.3 6.4-4 9c-2.7-2.6-4-5.7-4-9s1.3-6.4 4-9Z"/>
+</symbol>
+<symbol id="ic-robot" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="5" y="9" width="14" height="10" rx="2"/><circle cx="9.5" cy="14" r="1.2" fill="currentColor" stroke="none"/><circle cx="14.5" cy="14" r="1.2" fill="currentColor" stroke="none"/>
+  <path d="M12 9V6M9 6h6M4 13H2M22 13h-2"/>
+</symbol>
+<symbol id="ic-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M4 20V10M10 20V4M16 20v-7M4 20h16"/>
+</symbol>
+<symbol id="ic-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12 3l7 3v6c0 4.5-3 7.7-7 9-4-1.3-7-4.5-7-9V6l7-3Z"/><path d="M9 12l2 2 4-4"/>
+</symbol>
+<symbol id="ic-network" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="4.5" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/>
+  <path d="M12 6.5v4M12 10.5 6 16M12 10.5l6 5.5"/>
+</symbol>
+<symbol id="ic-rocket" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12 2c3 1.5 5 5 5 9 0 2-1 4-2 5l-3 2-3-2c-1-1-2-3-2-5 0-4 2-7.5 5-9Z"/><circle cx="12" cy="9" r="1.6"/>
+  <path d="M9 16l-2 4M15 16l2 4M9 20h6"/>
+</symbol>
+<symbol id="ic-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="12" r="3.2"/><path d="M12 3v2.4M12 18.6V21M21 12h-2.4M5.4 12H3M18 6l-1.7 1.7M7.7 16.3 6 18M18 18l-1.7-1.7M7.7 7.7 6 6"/>
+</symbol>
+<symbol id="ic-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5v-15Z"/><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20"/>
+</symbol>
+<symbol id="ic-gamepad" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M6 9h12l2 7a2 2 0 0 1-3.5 1.8L15 16H9l-1.5 1.8A2 2 0 0 1 4 16l2-7Z"/><path d="M8 12h2M9 11v2M16 11.5h.01M18 13h.01"/>
+</symbol>
+<symbol id="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M20 6 9 17l-5-5"/>
+</symbol>
+<symbol id="ic-warn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12 3 2 20h20L12 3Z"/><path d="M12 9v5M12 17h.01"/>
+</symbol>
+<symbol id="ic-bulb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M9 18h6M10 21h4M7 9a5 5 0 1 1 8.7 3.4c-.8.9-1.7 1.7-1.7 3.1v.5H10v-.5c0-1.4-.9-2.2-1.7-3.1A5 5 0 0 1 7 9Z"/>
+</symbol>
+<symbol id="ic-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/>
+</symbol>
+</defs>
+</svg>
+
+<script>
+/* ============================================================
+   SLIDE DATA — deck 7: לולאות (for, while)
+   ============================================================ */
+const FILE_NAME = "07_loops.py";
+const SLIDES = [
+  {
+    "type": "title",
+    "kicker": "תקשוב ומחשבים &middot; יחידה 7",
+    "title": "לולאות — <span class=\"py-mark\">for</span> <span class=\"py-mark2\">ו-while</span>",
+    "sub": "התוכניות שלנו כבר יודעות להחליט. היום הן לומדות לחזור על פעולה שוב ושוב — בלי שנכתוב אותה פעם אחר פעם.",
+    "prompt": ">>> for i in range(10): <span class=\"caret\"></span>"
+  },
+  {
+    "type": "content",
+    "eyebrow": "תזכורת מהיחידה הקודמת",
+    "title": "מה <span class='accent'>למדנו</span> ביחידה 6?",
+    "body": "\n  <ul class=\"plain\">\n    <li><strong class=\"hl2\">אופרטורים יחסיים</strong> (<code style=\"font-family:var(--font-mono)\">== != &lt; &gt; &lt;= &gt;=</code>) משווים ערכים ומחזירים <code style=\"font-family:var(--font-mono)\">True</code> או <code style=\"font-family:var(--font-mono)\">False</code></li>\n    <li>משפט <strong class=\"hl\">if</strong> מריץ בלוק מוזח רק אם התנאי מתקיים</li>\n    <li><strong class=\"hl\">else</strong> ו-<strong class=\"hl\">elif</strong> מוסיפים נתיבים חלופיים — Python עוצרת בתנאי הראשון שמתקיים</li>\n    <li>ההזחה (4 רווחים) היא חלק מהתחביר — היא קובעת אילו שורות שייכות לבלוק</li>\n  </ul>\n  <div class=\"callout tip\" style=\"margin-top:22px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>גם היום נשתמש בתנאים בוליאניים ובבלוקים מוזחים — אבל הפעם הבלוק לא ירוץ פעם אחת, אלא <strong>שוב ושוב</strong>.</p>\n  </div>"
+  },
+  {
+    "type": "content",
+    "eyebrow": "מטרות השיעור",
+    "title": "מה <span class='accent'>נלמד</span> היום?",
+    "body": "\n  <ul class=\"plain\">\n    <li>מה זו <strong class=\"hl2\">לולאה</strong>, ולמה אי אפשר לכתוב תוכניות אמיתיות בלעדיה</li>\n    <li>לולאת <strong class=\"hl\">while</strong> — חזרה כל עוד תנאי מתקיים</li>\n    <li>לולאת <strong class=\"hl\">for</strong> ו-<strong class=\"hl2\">range()</strong> — חזרה מספר ידוע של פעמים</li>\n    <li>אופרטורי הצבה מקוצרים: <code style=\"font-family:var(--font-mono)\">+=</code>, <code style=\"font-family:var(--font-mono)\">-=</code>, <code style=\"font-family:var(--font-mono)\">*=</code></li>\n    <li><strong class=\"hl2\">שליטה בתהליך הביצוע</strong> של הלולאה: <code style=\"font-family:var(--font-mono)\">break</code> ו-<code style=\"font-family:var(--font-mono)\">continue</code></li>\n    <li>איך עוקבים אחרי לולאה בעזרת <strong class=\"hl\">טבלת מעקב</strong> (trace table)</li>\n  </ul>"
+  },
+  {
+    "type": "code",
+    "eyebrow": "לפני שמתחילים",
+    "title": "בעיה: להדפיס <span class='accent'>1 עד 5</span>",
+    "desc": "עם מה שאנחנו יודעים עד עכשיו, זו הדרך היחידה:",
+    "code": [
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-num",
+        "c": "1"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-num",
+        "c": "2"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-num",
+        "c": "3"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-num",
+        "c": "4"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-num",
+        "c": "5"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "1\n2\n3\n4\n5"
+  },
+  {
+    "type": "content",
+    "eyebrow": "הבעיה",
+    "title": "ומה אם צריך <span class='accent'>1 עד 1000</span>?",
+    "body": "\n  <p class=\"body-text\">אלף שורות <code style=\"font-family:var(--font-mono)\">print</code>? ומה אם המשתמש הוא זה שמחליט עד איזה מספר? אי אפשר לכתוב מראש מספר שורות שלא ידוע.</p>\n  <p class=\"body-text\">מחשבים מצטיינים בדיוק בזה — <strong class=\"hl2\">לחזור על אותה פעולה</strong> מיליוני פעמים בלי להתעייף ובלי לטעות. אנחנו רק צריכים דרך להגיד להם: \"תעשה את זה שוב\".</p>\n  <div class=\"callout tip\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>המבנה שגורם לקטע קוד לרוץ שוב ושוב נקרא <strong>לולאה</strong> (loop). יחד עם התנאים מיחידה 6, זה החלק השני של <strong>בקרת הזרימה</strong>.</p>\n  </div>"
+  },
+  {
+    "type": "content",
+    "eyebrow": "מבט על",
+    "title": "שני סוגי <span class='accent'>לולאות</span> בפייתון",
+    "body": "\n  <div class=\"grid cols-2\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\">while</h3><p>חוזרת <strong>כל עוד תנאי מתקיים</strong>. מתאימה כשלא יודעים מראש כמה פעמים — למשל, עד שהמשתמש מקליד 0.</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\">for</h3><p>חוזרת <strong>על כל איבר ברצף</strong> — מספר ידוע של פעמים, או על כל תו במחרוזת.</p></div>\n  </div>\n  <p class=\"body-text\" style=\"margin-top:20px\">נתחיל מ-<strong class=\"hl2\">while</strong>, כי היא הכי דומה למשפט if שכבר מכירים.</p>"
+  },
+  {
+    "type": "content",
+    "eyebrow": "התחביר החדש",
+    "title": "לולאת <span class='accent'>while</span> — כל עוד",
+    "body": "\n  <p class=\"body-text\">לולאת <code style=\"font-family:var(--font-mono)\">while</code> נראית בדיוק כמו <code style=\"font-family:var(--font-mono)\">if</code>: תנאי, נקודתיים, ובלוק מוזח. ההבדל: אחרי שהבלוק מסתיים, Python <strong class=\"hl2\">חוזרת לבדוק את התנאי שוב</strong>. כל עוד הוא <code style=\"font-family:var(--font-mono)\">True</code> — הבלוק רץ עוד פעם.</p>\n  <div class=\"grid cols-2\" style=\"margin-top:18px\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\">if תנאי:</h3><p>בודק פעם אחת. אם True — הבלוק רץ <strong>פעם אחת</strong> וממשיכים הלאה.</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\">while תנאי:</h3><p>בודק, מריץ, בודק שוב, מריץ שוב… יוצאים מהלולאה רק כשהתנאי הופך ל-<strong>False</strong>.</p></div>\n  </div>"
+  },
+  {
+    "type": "code",
+    "eyebrow": "דוגמה ראשונה",
+    "title": "<span class='accent'>while</span> בפעולה",
+    "desc": "אותה בעיה מקודם — הדפסת 1 עד 5 — הפעם בשלוש שורות:",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "i"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "1"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-kw",
+        "c": "while"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "i"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "&lt;="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "5"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "i"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "i"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "i"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "+"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "1"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "1\n2\n3\n4\n5"
+  },
+  {
+    "type": "content",
+    "eyebrow": "כלי חובה · טבלת מעקב",
+    "title": "מה קורה <span class='accent'>בכל סיבוב</span>?",
+    "body": "\n  <p class=\"body-text\">כדי להבין לולאה, עוקבים אחרי ערכי המשתנים סיבוב אחרי סיבוב. טבלה כזו נקראת <strong class=\"hl2\">טבלת מעקב</strong> (trace table) — והיא גם כלי מרכזי בבחינה.</p>\n  <table class=\"trace\">\n    <tr><th>סיבוב</th><th>i בכניסה</th><th>i &lt;= 5 ?</th><th>מודפס</th><th>i בסוף</th></tr>\n    <tr><td>1</td><td>1</td><td class=\"t\">True</td><td class=\"o\">1</td><td>2</td></tr>\n    <tr><td>2</td><td>2</td><td class=\"t\">True</td><td class=\"o\">2</td><td>3</td></tr>\n    <tr><td>3</td><td>3</td><td class=\"t\">True</td><td class=\"o\">3</td><td>4</td></tr>\n    <tr><td>4</td><td>4</td><td class=\"t\">True</td><td class=\"o\">4</td><td>5</td></tr>\n    <tr><td>5</td><td>5</td><td class=\"t\">True</td><td class=\"o\">5</td><td>6</td></tr>\n    <tr><td>6</td><td>6</td><td class=\"f\">False</td><td>—</td><td>יוצאים</td></tr>\n  </table>"
+  },
+  {
+    "type": "content",
+    "eyebrow": "אנטומיה של לולאה",
+    "title": "שלושת החלקים של <span class='accent'>כל</span> לולאת while",
+    "body": "\n  <div class=\"grid cols-3\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\">i = 1</h3><p><strong>אתחול</strong> — לפני הלולאה, נותנים למשתנה הבקרה ערך התחלתי</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\">while i &lt;= 5:</h3><p><strong>תנאי</strong> — נבדק לפני כל סיבוב. ברגע שהוא False, הלולאה נגמרת</p></div>\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\">i = i + 1</h3><p><strong>עדכון</strong> — בתוך הלולאה, משנים את המשתנה כך שבסוף התנאי ייכשל</p></div>\n  </div>\n  <div class=\"callout warn\" style=\"margin-top:18px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-warn\"/></svg>\n    <p>אם חסר אחד משלושת החלקים — הלולאה כמעט בטוח לא תעשה מה שרציתם. הכי מסוכן: לשכוח את <strong>העדכון</strong>.</p>\n  </div>"
+  },
+  {
+    "type": "code",
+    "eyebrow": "מלכודת · לולאה אינסופית",
+    "title": "מה קורה <span class='accent'>בלי</span> עדכון?",
+    "desc": "שכחנו את השורה i = i + 1:",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "i"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "1"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-kw",
+        "c": "while"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "i"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "&lt;="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "5"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "i"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "1\n1\n1\n1\n1\n1\n1\n... (לא נעצר לעולם)"
+  },
+  {
+    "type": "content",
+    "eyebrow": "לולאה אינסופית",
+    "title": "ה<span class='accent'>תנאי</span> אף פעם לא נכשל",
+    "body": "\n  <p class=\"body-text\"><code style=\"font-family:var(--font-mono)\">i</code> נשאר 1 לנצח, ולכן <code style=\"font-family:var(--font-mono)\">i &lt;= 5</code> תמיד <code style=\"font-family:var(--font-mono)\">True</code>. התוכנית תמשיך להדפיס עד שנעצור אותה בכוח. זה נקרא <strong class=\"hl2\">לולאה אינסופית</strong> (infinite loop) — הבאג הכי נפוץ בלולאות.</p>\n  <div class=\"callout tip\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>אם התוכנית \"נתקעה\" ולא מגיבה — לחצו <strong>Ctrl + C</strong> בטרמינל, או על כפתור העצירה האדום ב-Thonny / VS Code. ואז שאלו: איזה משתנה היה אמור להשתנות, ולמה הוא לא השתנה?</p>\n  </div>"
+  },
+  {
+    "type": "exercises",
+    "eyebrow": "תרגול מיידי",
+    "title": "נסו <span class='accent'>עכשיו</span>",
+    "desc": "שתי דקות, בעצמכם:",
+    "items": [
+      {
+        "tag": "easy",
+        "text": "כתבו לולאת <code>while</code> שמדפיסה את המספרים 1 עד 10."
+      },
+      {
+        "tag": "easy",
+        "text": "שנו את הלולאה כך שתדפיס רק מספרים זוגיים: 2, 4, 6, 8, 10 (רמז: שנו את האתחול ואת העדכון)."
+      },
+      {
+        "tag": "med",
+        "text": "כתבו לולאה שסופרת <strong>לאחור</strong> מ-10 עד 1, ואז מדפיסה \"שיגור!\"."
+      }
+    ]
+  },
+  {
+    "type": "content",
+    "eyebrow": "קיצור שימושי",
+    "title": "אופרטורי הצבה <span class='accent'>מקוצרים</span>",
+    "body": "\n  <p class=\"body-text\">השורה <code style=\"font-family:var(--font-mono)\">i = i + 1</code> כל כך נפוצה, שיש לה קיצור: <code style=\"font-family:var(--font-mono)\">i += 1</code>. הקיצור עובד עם כל האופרטורים החשבוניים מיחידה 3.</p>\n  <div class=\"grid cols-3\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\">i += 1</h3><p>זהה ל-<code>i = i + 1</code></p></div>\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\">i -= 2</h3><p>זהה ל-<code>i = i - 2</code></p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\">total *= 3</h3><p>זהה ל-<code>total = total * 3</code></p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\">x /= 2</h3><p>זהה ל-<code>x = x / 2</code></p></div>\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\">x //= 2</h3><p>זהה ל-<code>x = x // 2</code></p></div>\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\">x %= 10</h3><p>זהה ל-<code>x = x % 10</code></p></div>\n  </div>"
+  },
+  {
+    "type": "code",
+    "eyebrow": "תבנית חשובה · צובר",
+    "title": "סכום המספרים <span class='accent'>1 עד 10</span>",
+    "desc": "משתנה אחד סופר (i), ומשתנה שני צובר את הסכום (total):",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "total"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "0"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "i"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "1"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-kw",
+        "c": "while"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "i"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "&lt;="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "10"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "total"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "+="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "i"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "i"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "+="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "1"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"הסכום:\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "total"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "הסכום: 55"
+  },
+  {
+    "type": "content",
+    "eyebrow": "תבנית הצובר",
+    "title": "משתנה <span class='accent'>צובר</span> (accumulator)",
+    "body": "\n  <p class=\"body-text\">זו תבנית שתפגשו בכל מקום: משתנה שמתחיל מערך \"ריק\" (0 לסכום, 1 למכפלה, <code style=\"font-family:var(--font-mono)\">\"\"</code> למחרוזת), ובכל סיבוב <strong class=\"hl2\">מוסיפים אליו</strong> עוד קצת.</p>\n  <table class=\"trace\">\n    <tr><th>סיבוב</th><th>i</th><th>total לפני</th><th>total += i</th><th>total אחרי</th></tr>\n    <tr><td>1</td><td>1</td><td>0</td><td>0 + 1</td><td class=\"o\">1</td></tr>\n    <tr><td>2</td><td>2</td><td>1</td><td>1 + 2</td><td class=\"o\">3</td></tr>\n    <tr><td>3</td><td>3</td><td>3</td><td>3 + 3</td><td class=\"o\">6</td></tr>\n    <tr><td>4</td><td>4</td><td>6</td><td>6 + 4</td><td class=\"o\">10</td></tr>\n    <tr><td>…</td><td>…</td><td>…</td><td>…</td><td>…</td></tr>\n    <tr><td>10</td><td>10</td><td>45</td><td>45 + 10</td><td class=\"o\">55</td></tr>\n  </table>\n  <div class=\"callout warn\" style=\"margin-top:14px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-warn\"/></svg>\n    <p>האתחול <code style=\"font-family:var(--font-mono)\">total = 0</code> חייב להיות <strong>לפני</strong> הלולאה. אם הוא בתוכה — הסכום מתאפס בכל סיבוב.</p>\n  </div>"
+  },
+  {
+    "type": "code",
+    "eyebrow": "while עם קלט",
+    "title": "לולאה שנגמרת כשהמשתמש <span class='accent'>מחליט</span>",
+    "desc": "קולטים מספרים וסוכמים אותם, עד שהמשתמש מקליד 0. לא ידוע מראש כמה סיבובים יהיו — בדיוק בשביל זה יש while:",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "total"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "0"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "num"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "int"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-fn",
+        "c": "input"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"הקלד מספר (0 לסיום): \""
+      },
+      {
+        "t": "tok-punc",
+        "c": "))"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-kw",
+        "c": "while"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "num"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "!="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "0"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "total"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "+="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "num"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "num"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "int"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-fn",
+        "c": "input"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"הקלד מספר (0 לסיום): \""
+      },
+      {
+        "t": "tok-punc",
+        "c": "))"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"סך הכל:\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "total"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      }
+    ],
+    "outLabel": "הרצה לדוגמה:",
+    "outText": "הקלד מספר (0 לסיום): 5\nהקלד מספר (0 לסיום): 12\nהקלד מספר (0 לסיום): 3\nהקלד מספר (0 לסיום): 0\nסך הכל: 20"
+  },
+  {
+    "type": "content",
+    "eyebrow": "שימו לב",
+    "title": "ערך <span class='accent'>עצירה</span> (sentinel)",
+    "body": "\n  <p class=\"body-text\">הערך 0 כאן הוא <strong class=\"hl2\">ערך עצירה</strong> — ערך מיוחד שמסמן \"סיימתי\". שימו לב לשני דברים בקוד:</p>\n  <ul class=\"plain\">\n    <li>יש <code style=\"font-family:var(--font-mono)\">input()</code> אחד <strong class=\"hl\">לפני</strong> הלולאה (כדי שיהיה מה לבדוק בתנאי בפעם הראשונה) ואחד <strong class=\"hl\">בסוף</strong> כל סיבוב</li>\n    <li>הערך 0 עצמו <strong class=\"hl2\">לא נכנס לסכום</strong> — ברגע שהוא נקלט, התנאי נכשל ויוצאים</li>\n  </ul>"
+  },
+  {
+    "type": "code",
+    "eyebrow": "שימוש נפוץ מאוד",
+    "title": "בדיקת <span class='accent'>תקינות קלט</span>",
+    "desc": "מבקשים גיל שוב ושוב, עד שמקבלים ערך הגיוני:",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "age"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "int"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-fn",
+        "c": "input"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"מה הגיל שלך? \""
+      },
+      {
+        "t": "tok-punc",
+        "c": "))"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-kw",
+        "c": "while"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "age"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "&lt;"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "0"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "or"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "age"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "&gt;"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "120"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"גיל לא תקין, נסה שוב.\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "age"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "int"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-fn",
+        "c": "input"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"מה הגיל שלך? \""
+      },
+      {
+        "t": "tok-punc",
+        "c": "))"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"תודה! הגיל שנרשם:\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "age"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      }
+    ],
+    "outLabel": "הרצה לדוגמה:",
+    "outText": "מה הגיל שלך? -5\nגיל לא תקין, נסה שוב.\nמה הגיל שלך? 200\nגיל לא תקין, נסה שוב.\nמה הגיל שלך? 17\nתודה! הגיל שנרשם: 17"
+  },
+  {
+    "type": "content",
+    "eyebrow": "הצצה קדימה",
+    "title": "מה זה ה-<span class='accent'>or</span> הזה?",
+    "body": "\n  <p class=\"body-text\"><code style=\"font-family:var(--font-mono)\">age &lt; 0 or age &gt; 120</code> פירושו: \"הגיל שלילי <strong class=\"hl2\">או</strong> גדול מ-120\". <code style=\"font-family:var(--font-mono)\">or</code> מחבר שני תנאים בוליאניים לתנאי אחד.</p>\n  <div class=\"callout tip\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p><code style=\"font-family:var(--font-mono)\">and</code>, <code style=\"font-family:var(--font-mono)\">or</code> ו-<code style=\"font-family:var(--font-mono)\">not</code> הם <strong>אופרטורים לוגיים</strong> — נלמד אותם לעומק ביחידה 8. בינתיים מספיק להבין ש-<code style=\"font-family:var(--font-mono)\">or</code> מחזיר True אם <strong>לפחות אחד</strong> מהתנאים מתקיים.</p>\n  </div>"
+  },
+  {
+    "type": "exercises",
+    "eyebrow": "תרגול · while",
+    "title": "תרגלו <span class='accent'>while</span>",
+    "desc": "לולאות שלא יודעות מראש כמה סיבובים יהיו:",
+    "items": [
+      {
+        "tag": "easy",
+        "text": "בקשו מהמשתמש סיסמה שוב ושוב, עד שהוא מקליד <code>\"python\"</code>. ואז הדפיסו \"התחברת!\"."
+      },
+      {
+        "tag": "med",
+        "text": "קלטו מספרים עד שהמשתמש מקליד 0, ובסוף הדפיסו <strong>כמה</strong> מספרים הוקלדו (בלי לספור את ה-0)."
+      },
+      {
+        "tag": "med",
+        "text": "קלטו ציונים עד שמוקלד -1, והדפיסו את הממוצע שלהם (סכום חלקי כמות)."
+      },
+      {
+        "tag": "hard",
+        "text": "משחק ניחוש: בחרו מספר סודי (למשל 42). בקשו ניחושים עד שהמשתמש צודק, ובכל פעם הדפיסו \"גדול מדי\" או \"קטן מדי\". בסוף הדפיסו כמה ניחושים נדרשו."
+      }
+    ]
+  },
+  {
+    "type": "content",
+    "eyebrow": "הלולאה השנייה",
+    "title": "לולאת <span class='accent'>for</span> — מספר ידוע של פעמים",
+    "body": "\n  <p class=\"body-text\">כשאנחנו <strong class=\"hl2\">יודעים מראש</strong> כמה סיבובים צריך — 5 פעמים, 100 פעמים, פעם לכל תו במחרוזת — לולאת <code style=\"font-family:var(--font-mono)\">for</code> קצרה ובטוחה יותר: אין אתחול, אין עדכון, ואין סיכוי ללולאה אינסופית.</p>\n  <div class=\"callout tip\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>מבנה: <code style=\"font-family:var(--font-mono)\">for משתנה in רצף:</code> — המשתנה מקבל, סיבוב אחרי סיבוב, כל ערך ברצף. הרצף הכי נפוץ הוא <code style=\"font-family:var(--font-mono)\">range()</code>.</p>\n  </div>"
+  },
+  {
+    "type": "code",
+    "eyebrow": "דוגמה ראשונה",
+    "title": "<span class='accent'>for</span> עם <span class='accent'>range</span>",
+    "desc": "הדפסת 5 מספרים — שימו לב מאיפה מתחילים ואיפה נגמרים:",
+    "code": [
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "i"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "range"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-num",
+        "c": "5"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "i"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "0\n1\n2\n3\n4"
+  },
+  {
+    "type": "content",
+    "eyebrow": "נקודה קריטית",
+    "title": "<span class='accent'>range(5)</span> — מ-0, ו-5 לא כלול",
+    "body": "\n  <div class=\"callout warn\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-warn\"/></svg>\n    <p><code style=\"font-family:var(--font-mono)\">range(5)</code> מייצר את הערכים <strong>0, 1, 2, 3, 4</strong> — חמישה מספרים, אבל 5 עצמו <strong>לא</strong> ביניהם. בדיוק כמו אינדקסים של מחרוזת מיחידה 5: מתחילים מ-0.</p>\n  </div>\n  <p class=\"body-text\" style=\"margin-top:18px\">זה מבלבל בהתחלה, אבל יש בזה היגיון: <code style=\"font-family:var(--font-mono)\">range(n)</code> תמיד נותן <strong class=\"hl2\">בדיוק n ערכים</strong>, ולכן <code style=\"font-family:var(--font-mono)\">for i in range(5)</code> = \"חזור 5 פעמים\".</p>"
+  },
+  {
+    "type": "content",
+    "eyebrow": "שלוש צורות",
+    "title": "הפונקציה <span class='accent'>range()</span>",
+    "body": "\n  <div class=\"grid cols-3\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\">range(stop)</h3><p>מ-0 עד stop (לא כולל).<br><code>range(4)</code> → 0, 1, 2, 3</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\">range(start, stop)</h3><p>מ-start עד stop (לא כולל).<br><code>range(1, 6)</code> → 1, 2, 3, 4, 5</p></div>\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\">range(start, stop, step)</h3><p>בקפיצות של step.<br><code>range(0, 10, 2)</code> → 0, 2, 4, 6, 8</p></div>\n  </div>\n  <p class=\"body-text\" style=\"margin-top:18px\">step יכול להיות גם <strong class=\"hl2\">שלילי</strong> — ואז סופרים לאחור: <code style=\"font-family:var(--font-mono)\">range(5, 0, -1)</code> → 5, 4, 3, 2, 1.</p>"
+  },
+  {
+    "type": "code",
+    "eyebrow": "דוגמה",
+    "title": "<span class='accent'>range</span> בשלוש צורות",
+    "desc": "שימו לב לשימוש ב-end=\" \" כדי להדפיס באותה שורה (מיחידה 1):",
+    "code": [
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "i"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "range"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-num",
+        "c": "1"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "6"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "i"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "end"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\" \""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "i"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "range"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-num",
+        "c": "0"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "10"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "2"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "i"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "end"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\" \""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "i"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "range"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-num",
+        "c": "5"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "0"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "-"
+      },
+      {
+        "t": "tok-num",
+        "c": "1"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "i"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "end"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\" \""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"שיגור!\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "1 2 3 4 5 \n0 2 4 6 8 \n5 4 3 2 1 שיגור!"
+  },
+  {
+    "type": "code",
+    "eyebrow": "גם עם צובר",
+    "title": "סכום 1 עד 10 — הפעם עם <span class='accent'>for</span>",
+    "desc": "אותה תבנית צובר, פחות שורות, ואין מה לשכוח:",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "total"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "0"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "i"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "range"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-num",
+        "c": "1"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "11"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "total"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "+="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "i"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"הסכום:\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "total"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "הסכום: 55"
+  },
+  {
+    "type": "content",
+    "eyebrow": "טבלת מעקב · for",
+    "title": "עוקבים אחרי <span class='accent'>for</span>",
+    "body": "\n  <p class=\"body-text\">בלולאת for משתנה הבקרה מתעדכן <strong class=\"hl2\">אוטומטית</strong> בכל סיבוב — לכן בטבלה אין עמודת \"עדכון\":</p>\n  <table class=\"trace\">\n    <tr><th>סיבוב</th><th>i</th><th>total לפני</th><th>total אחרי</th></tr>\n    <tr><td>1</td><td>1</td><td>0</td><td class=\"o\">1</td></tr>\n    <tr><td>2</td><td>2</td><td>1</td><td class=\"o\">3</td></tr>\n    <tr><td>3</td><td>3</td><td>3</td><td class=\"o\">6</td></tr>\n    <tr><td>…</td><td>…</td><td>…</td><td>…</td></tr>\n    <tr><td>10</td><td>10</td><td>45</td><td class=\"o\">55</td></tr>\n    <tr><td>—</td><td colspan=\"3\">ה-range נגמר → יוצאים מהלולאה</td></tr>\n  </table>"
+  },
+  {
+    "type": "code",
+    "eyebrow": "לא רק מספרים",
+    "title": "<span class='accent'>for</span> על <span class='accent'>מחרוזת</span>",
+    "desc": "מחרוזת היא רצף של תווים — אפשר לעבור עליהם אחד-אחד:",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "word"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"python\""
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "ch"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "word"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "ch"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "end"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\" - \""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"אורך המילה:\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "len"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "word"
+      },
+      {
+        "t": "tok-punc",
+        "c": "))"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "p - y - t - h - o - n - \nאורך המילה: 6"
+  },
+  {
+    "type": "code",
+    "eyebrow": "דוגמה · ספירה במחרוזת",
+    "title": "כמה פעמים מופיעה <span class='accent'>אות</span>?",
+    "desc": "משלבים for על מחרוזת, if מיחידה 6, וצובר:",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "sentence"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"banana bandana\""
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "count"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "0"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "ch"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "sentence"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "if"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "ch"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "=="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"a\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-var",
+        "c": "count"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "+="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "1"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"האות a מופיעה\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "count"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"פעמים\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "האות a מופיעה 6 פעמים"
+  },
+  {
+    "type": "exercises",
+    "eyebrow": "תרגול · for",
+    "title": "תרגלו <span class='accent'>for</span> ו-<span class='accent'>range</span>",
+    "desc": "לולאות עם מספר ידוע של סיבובים:",
+    "items": [
+      {
+        "tag": "easy",
+        "text": "הדפיסו את המספרים 10 עד 20 (כולל) בעזרת for."
+      },
+      {
+        "tag": "easy",
+        "text": "הדפיסו את כל הכפולות של 5 מ-5 עד 50."
+      },
+      {
+        "tag": "med",
+        "text": "בקשו מהמשתמש מספר n, וחשבו את המכפלה 1 × 2 × … × n (עצרת). רמז: הצובר מתחיל מ-1, לא מ-0."
+      },
+      {
+        "tag": "med",
+        "text": "בקשו מהמשתמש מילה, וספרו כמה <strong>אותיות ניקוד</strong> (a, e, i, o, u) יש בה."
+      }
+    ]
+  },
+  {
+    "type": "content",
+    "eyebrow": "מתי מה?",
+    "title": "<span class='accent'>for</span> או <span class='accent'>while</span>?",
+    "body": "\n  <div class=\"grid cols-2\">\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\">for</h3><p>יודעים מראש כמה סיבובים: \"10 פעמים\", \"לכל תו במילה\", \"מ-1 עד n\". קצר, בטוח, קריא.</p></div>\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\">while</h3><p>לא יודעים מראש: \"עד שהמשתמש מקליד 0\", \"עד שהקלט תקין\", \"עד שהניחוש נכון\". כל מה שתלוי במה שקורה תוך כדי.</p></div>\n  </div>\n  <div class=\"callout tip\" style=\"margin-top:18px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>כלל אצבע: אם אתם יכולים להשלים את המשפט \"חזור <strong>___ פעמים</strong>\" — זה for. אם המשפט הוא \"חזור <strong>כל עוד ___</strong>\" — זה while.</p>\n  </div>"
+  },
+  {
+    "type": "content",
+    "eyebrow": "שליטה בתהליך הביצוע",
+    "title": "לפעמים צריך <span class='accent'>לצאת באמצע</span>",
+    "body": "\n  <p class=\"body-text\">בדרך כלל לולאה נגמרת כשהתנאי נכשל או כשה-range נגמר. אבל יש שתי מילות מפתח שמאפשרות לשלוט בזרימה <strong class=\"hl2\">מתוך</strong> הבלוק:</p>\n  <div class=\"grid cols-2\" style=\"margin-top:14px\">\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\">break</h3><p><strong>יוצאים מהלולאה מיד</strong> — לא משנה מה התנאי אומר. ממשיכים לשורה שאחרי הלולאה.</p></div>\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\">continue</h3><p><strong>מדלגים על שאר הסיבוב הנוכחי</strong> וקופצים ישר לסיבוב הבא (לבדיקת התנאי / לערך הבא ב-range).</p></div>\n  </div>"
+  },
+  {
+    "type": "code",
+    "eyebrow": "דוגמה · break",
+    "title": "<span class='accent'>break</span> — יציאה מיידית",
+    "desc": "מחפשים את המספר הראשון בין 1 ל-100 שמתחלק גם ב-7 וגם ב-5. ברגע שמצאנו — אין טעם להמשיך:",
+    "code": [
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "n"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "range"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-num",
+        "c": "1"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "101"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "if"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "n"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "%"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "7"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "=="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "0"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "and"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "n"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "%"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "5"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "=="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "0"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"נמצא:\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "n"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-kw",
+        "c": "break"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"סיימנו לחפש\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "נמצא: 35\nסיימנו לחפש"
+  },
+  {
+    "type": "code",
+    "eyebrow": "דוגמה · continue",
+    "title": "<span class='accent'>continue</span> — דילוג על סיבוב",
+    "desc": "מדפיסים את המספרים 1 עד 10, אבל מדלגים על הכפולות של 3:",
+    "code": [
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "n"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "range"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-num",
+        "c": "1"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "11"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "if"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "n"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "%"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "3"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "=="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "0"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-kw",
+        "c": "continue"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "n"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "end"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\" \""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "1 2 4 5 7 8 10 "
+  },
+  {
+    "type": "code",
+    "eyebrow": "break עם while",
+    "title": "לולאה \"אינסופית\" <span class='accent'>בכוונה</span>",
+    "desc": "תבנית נפוצה: while True שיוצאים ממנה רק עם break. כך אפשר לבדוק את הקלט באמצע הסיבוב:",
+    "code": [
+      {
+        "t": "tok-kw",
+        "c": "while"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "True"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "text"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "input"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"הקלד משהו (או 'צא'): \""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "if"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "text"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "=="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"צא\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-kw",
+        "c": "break"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"הקלדת:\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "text"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"להתראות!\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      }
+    ],
+    "outLabel": "הרצה לדוגמה:",
+    "outText": "הקלד משהו (או 'צא'): שלום\nהקלדת: שלום\nהקלד משהו (או 'צא'): צא\nלהתראות!"
+  },
+  {
+    "type": "content",
+    "eyebrow": "שימו לב",
+    "title": "<span class='accent'>break</span> — במידה",
+    "body": "\n  <div class=\"callout warn\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-warn\"/></svg>\n    <p><code style=\"font-family:var(--font-mono)\">break</code> נוח, אבל לולאה עם הרבה נקודות יציאה קשה לקריאה — צריך לחפש בכל הבלוק כדי להבין מתי היא נגמרת. אם אפשר לנסח את תנאי היציאה בשורת ה-while עצמה, לרוב עדיף.</p>\n  </div>\n  <div class=\"callout tip\" style=\"margin-top:16px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p><code style=\"font-family:var(--font-mono)\">break</code> ו-<code style=\"font-family:var(--font-mono)\">continue</code> משפיעים רק על הלולאה <strong>הכי פנימית</strong> שהם נמצאים בה. בלולאות מקוננות — נראה מיד — זה חשוב.</p>\n  </div>"
+  },
+  {
+    "type": "exercises",
+    "eyebrow": "תרגול · break ו-continue",
+    "title": "תרגלו <span class='accent'>שליטה</span> בלולאה",
+    "desc": "",
+    "items": [
+      {
+        "tag": "easy",
+        "text": "הדפיסו את המספרים 1 עד 20, אבל דלגו על הזוגיים (בעזרת <code>continue</code>)."
+      },
+      {
+        "tag": "med",
+        "text": "קלטו מספרים מהמשתמש בלולאת <code>while True</code>. אם המספר שלילי — <code>break</code>. אחרת הדפיסו את הריבוע שלו."
+      },
+      {
+        "tag": "med",
+        "text": "בקשו מהמשתמש מספר, ומצאו את המחלק הראשון שלו שגדול מ-1 (עברו על 2, 3, 4… ועצרו ב-<code>break</code> כשמצאתם). אם המחלק הוא המספר עצמו — הוא ראשוני."
+      }
+    ]
+  },
+  {
+    "type": "content",
+    "eyebrow": "טכניקה נוספת",
+    "title": "לולאות <span class='accent'>מקוננות</span> (nested loops)",
+    "body": "\n  <p class=\"body-text\">בדיוק כמו if בתוך if, אפשר לכתוב לולאה בתוך לולאה. <strong class=\"hl2\">על כל סיבוב אחד</strong> של הלולאה החיצונית, הלולאה הפנימית רצה <strong class=\"hl2\">מההתחלה עד הסוף</strong>.</p>\n  <div class=\"callout tip\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>חשבו על שעון: המחוג הגדול (הפנימי) עושה סיבוב שלם על כל צעד אחד של המחוג הקטן (החיצוני). 3 סיבובים חיצוניים × 4 פנימיים = 12 ריצות של הבלוק הפנימי.</p>\n  </div>"
+  },
+  {
+    "type": "code",
+    "eyebrow": "דוגמה · לולאה מקוננת",
+    "title": "מי רץ <span class='accent'>מתי</span>?",
+    "desc": "עקבו אחרי הסדר שבו מודפסים הזוגות:",
+    "code": [
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "i"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "range"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-num",
+        "c": "1"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "4"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "j"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "range"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-num",
+        "c": "1"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "4"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "i"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"-\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "j"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "end"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"   \""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "1 - 1   1 - 2   1 - 3   \n2 - 1   2 - 2   2 - 3   \n3 - 1   3 - 2   3 - 3   "
+  },
+  {
+    "type": "code",
+    "eyebrow": "דוגמה קלאסית",
+    "title": "לוח <span class='accent'>הכפל</span>",
+    "desc": "הלולאה החיצונית עוברת על השורות, הפנימית על העמודות. ה-print() הריק יורד שורה בסוף כל שורה:",
+    "code": [
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "row"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "range"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-num",
+        "c": "1"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "6"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "col"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "range"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-num",
+        "c": "1"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "6"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "row"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "*"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "col"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "end"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"\\t\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "1\t2\t3\t4\t5\n2\t4\t6\t8\t10\n3\t6\t9\t12\t15\n4\t8\t12\t16\t20\n5\t10\t15\t20\t25"
+  },
+  {
+    "type": "code",
+    "eyebrow": "דוגמה · צורות",
+    "title": "משולש <span class='accent'>כוכביות</span>",
+    "desc": "מספר הכוכביות בכל שורה תלוי במספר השורה — הפנימית תלויה בחיצונית:",
+    "code": [
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "row"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "range"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-num",
+        "c": "1"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "6"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"*\""
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "*"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "row"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "*\n**\n***\n****\n*****"
+  },
+  {
+    "type": "content",
+    "eyebrow": "שימו לב",
+    "title": "בלי לולאה פנימית <span class='accent'>בכלל</span>?",
+    "body": "\n  <p class=\"body-text\">בדוגמה האחרונה השתמשנו ב-<code style=\"font-family:var(--font-mono)\">\"*\" * row</code> — פעולת החזרה על מחרוזות מיחידה 5 — במקום לולאה פנימית. שתי הדרכים נכונות; זו סתם קצרה יותר.</p>\n  <div class=\"callout tip\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>נסו לכתוב את אותו משולש <strong>עם</strong> לולאה פנימית: <code style=\"font-family:var(--font-mono)\">for star in range(row): print(\"*\", end=\"\")</code> ואז <code style=\"font-family:var(--font-mono)\">print()</code>. חשוב להבין את שתי הדרכים.</p>\n  </div>"
+  },
+  {
+    "type": "exercises",
+    "eyebrow": "תרגול · לולאות מקוננות",
+    "title": "תרגלו <span class='accent'>קינון</span>",
+    "desc": "",
+    "items": [
+      {
+        "tag": "easy",
+        "text": "הדפיסו ריבוע של כוכביות בגודל 4×4 (4 שורות, בכל שורה 4 כוכביות) בעזרת שתי לולאות."
+      },
+      {
+        "tag": "med",
+        "text": "הדפיסו משולש <strong>הפוך</strong>: 5 כוכביות בשורה הראשונה, 4 בשנייה… עד 1."
+      },
+      {
+        "tag": "med",
+        "text": "בקשו מהמשתמש מספר n, והדפיסו לוח כפל בגודל n×n."
+      },
+      {
+        "tag": "hard",
+        "text": "הדפיסו את כל הזוגות (a, b) של מספרים בין 1 ל-20 שמקיימים a² + b² = 25 (רמז: שתי לולאות ו-if)."
+      }
+    ]
+  },
+  {
+    "type": "content",
+    "eyebrow": "טעויות נפוצות",
+    "title": "ארבע מלכודות <span class='accent'>שכדאי להכיר</span>",
+    "body": "\n  <div class=\"grid cols-2\">\n    <div class=\"card coral\"><h3>לשכוח את העדכון ב-while</h3><p>לולאה אינסופית. תמיד שאלו: \"מה משנה את התנאי ל-False?\"</p></div>\n    <div class=\"card coral\"><h3>סטייה של אחד (off-by-one)</h3><p><code>range(1, 10)</code> לא כולל את 10. רציתם 1 עד 10? כתבו <code>range(1, 11)</code>.</p></div>\n    <div class=\"card gold\"><h3>אתחול הצובר בתוך הלולאה</h3><p><code>total = 0</code> בתוך הבלוק מאפס את הסכום בכל סיבוב. האתחול תמיד לפני.</p></div>\n    <div class=\"card gold\"><h3>לשכוח נקודתיים או הזחה</h3><p>בדיוק כמו ב-if: <code>while i &lt; 5:</code> ואז בלוק מוזח. אחרת — SyntaxError / IndentationError.</p></div>\n  </div>"
+  },
+  {
+    "type": "exercises",
+    "eyebrow": "תרגול · חלק א׳",
+    "title": "משימות — <span class='accent'>רמה קלה</span>",
+    "desc": "בסיס: while, for ו-range.",
+    "items": [
+      {
+        "tag": "easy",
+        "text": "הדפיסו את המספרים 1 עד 50 — פעם אחת עם while ופעם אחת עם for."
+      },
+      {
+        "tag": "easy",
+        "text": "בקשו מהמשתמש מספר n, והדפיסו \"שלום\" n פעמים."
+      },
+      {
+        "tag": "easy",
+        "text": "חשבו והדפיסו את סכום כל המספרים הזוגיים בין 1 ל-100."
+      },
+      {
+        "tag": "easy",
+        "text": "בקשו מהמשתמש מילה, והדפיסו כל אות שלה בשורה נפרדת."
+      }
+    ]
+  },
+  {
+    "type": "exercises",
+    "eyebrow": "תרגול · חלק ב׳",
+    "title": "משימות — <span class='accent'>רמה בינונית</span>",
+    "desc": "שילוב של לולאה, תנאי וצובר.",
+    "items": [
+      {
+        "tag": "med",
+        "text": "קלטו 5 ציונים מהמשתמש (בלולאת for), והדפיסו את הגבוה ביותר. רמז: שמרו את \"הגבוה עד עכשיו\" במשתנה, ועדכנו אותו רק כשמוצאים גדול יותר."
+      },
+      {
+        "tag": "med",
+        "text": "בקשו מהמשתמש מספר, והדפיסו את כל המחלקים שלו (המספרים שמחלקים אותו ללא שארית)."
+      },
+      {
+        "tag": "med",
+        "text": "קלטו מספרים עד שמוקלד 0, והדפיסו בסוף כמה מהם היו חיוביים וכמה שליליים."
+      },
+      {
+        "tag": "med",
+        "text": "בקשו מהמשתמש מילה, ובנו ממנה מילה <strong>הפוכה</strong> בעזרת לולאה וצובר-מחרוזת (מתחילים מ-<code>\"\"</code> ומוסיפים כל תו <strong>לפני</strong> מה שכבר נצבר)."
+      }
+    ]
+  },
+  {
+    "type": "exercises",
+    "eyebrow": "תרגול · חלק ג׳",
+    "title": "משימות — <span class='accent'>רמה מאתגרת</span>",
+    "desc": "חשיבה על מבנה הלולאה ועל קינון.",
+    "items": [
+      {
+        "tag": "hard",
+        "text": "איתור באג: <code style=\"display:block;margin-top:6px;white-space:pre\">total = 0\nfor i in range(1, 6):\n    total = i\nprint(total)</code> התוכנית אמורה להדפיס 15 אבל מדפיסה 5. מצאו ותקנו."
+      },
+      {
+        "tag": "hard",
+        "text": "בקשו מהמשתמש מספר, וקבעו אם הוא <strong>ראשוני</strong> (מתחלק רק ב-1 ובעצמו). השתמשו בלולאה שבודקת מחלקים מ-2 עד המספר פחות 1, ו-break ברגע שנמצא מחלק."
+      },
+      {
+        "tag": "hard",
+        "text": "סדרת פיבונאצ'י: כל איבר הוא סכום שני הקודמים (0, 1, 1, 2, 3, 5, 8…). בקשו מהמשתמש n, והדפיסו את n האיברים הראשונים. רמז: צריך שני משתנים ש\"זזים\" קדימה בכל סיבוב."
+      },
+      {
+        "tag": "hard",
+        "text": "הדפיסו \"פירמידה\" ממורכזת של 5 שורות: בשורה k יש (5-k) רווחים ואז (2k-1) כוכביות."
+      }
+    ]
+  },
+  {
+    "type": "exercises",
+    "eyebrow": "בדיקה עצמית",
+    "title": "שאלות <span class='accent'>חזרה</span> מהירות",
+    "desc": "בלי לגלול אחורה — כמה מהן אתם זוכרים?",
+    "items": [
+      {
+        "tag": "easy",
+        "text": "מה מדפיס <code>for i in range(3): print(i)</code>?"
+      },
+      {
+        "tag": "easy",
+        "text": "מה ההבדל בין <code>break</code> ל-<code>continue</code>?"
+      },
+      {
+        "tag": "med",
+        "text": "אילו שלושה חלקים חייבים להיות בכל לולאת while תקינה?"
+      },
+      {
+        "tag": "med",
+        "text": "איך כותבים range שמייצר 10, 8, 6, 4, 2?"
+      },
+      {
+        "tag": "med",
+        "text": "בלולאה מקוננת של 4 סיבובים חיצוניים ו-3 פנימיים — כמה פעמים רץ הבלוק הפנימי?"
+      },
+      {
+        "tag": "hard",
+        "text": "למה <code>total = 0</code> חייב להיות לפני הלולאה ולא בתוכה?"
+      }
+    ]
+  },
+  {
+    "type": "content",
+    "eyebrow": "לפני שסוגרים",
+    "title": "שישה דברים <span class='accent'>לזכור</span> מהיום",
+    "body": "\n  <div class=\"grid cols-3\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\">while תנאי:</h3><p>חוזר כל עוד התנאי True — אתחול, תנאי, עדכון</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\">for i in range(n):</h3><p>חוזר n פעמים, i מקבל 0 עד n-1</p></div>\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\">range(a, b, step)</h3><p>מ-a עד b (לא כולל), בקפיצות step</p></div>\n    <div class=\"card green\"><h3 style=\"font-family:var(--font-mono)\">total += i</h3><p>תבנית הצובר — האתחול תמיד לפני הלולאה</p></div>\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\">break / continue</h3><p>יציאה מיידית / דילוג לסיבוב הבא</p></div>\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\">טבלת מעקב</h3><p>סיבוב אחרי סיבוב — כך מבינים (ומוצאים באגים) בכל לולאה</p></div>\n  </div>"
+  },
+  {
+    "type": "title",
+    "kicker": "סיכום יחידה 7",
+    "title": "התוכניות שלכם עכשיו <span class=\"py-mark\">חוזרות</span> <span class=\"py-mark2\">על עצמן</span>",
+    "sub": "בשיעור הבא: אופרטורים לוגיים — and, or, not — ואיך משלבים כמה תנאים לתנאי אחד.",
+    "prompt": ">>> if age >= 18 and has_id: <span class=\"caret\"></span>"
+  }
+];
+
+
+/* ============================================================
+   RENDER ENGINE — shared across all decks in this course.
+   Reads the SLIDES data array above and builds the DOM.
+   ============================================================ */
+function esc(s){ return String(s); } // content is authored HTML on purpose (icons, spans)
+
+function renderCode(tokens){
+  return tokens.map(tk => tk.t ? `<span class="${tk.t}">${tk.c}</span>` : tk.c).join("");
+}
+
+function buildSlide(s, i){
+  const el = document.createElement("section");
+  el.className = "slide";
+  el.dataset.index = i;
+
+  if(s.type === "title"){
+    el.classList.add("title-slide");
+    el.innerHTML = `
+      <div class="kicker">${s.kicker}</div>
+      <h1>${s.title}</h1>
+      <p>${s.sub}</p>
+      <div class="prompt-line">${s.prompt}</div>
+    `;
+  } else if(s.type === "content"){
+    el.innerHTML = `
+      <div class="eyebrow"><span class="dot"></span>${s.eyebrow}</div>
+      <h1 class="slide-title">${s.title}</h1>
+      ${s.body}
+    `;
+  } else if(s.type === "code"){
+    el.innerHTML = `
+      <div class="eyebrow"><span class="dot"></span>${s.eyebrow}</div>
+      <h1 class="slide-title">${s.title}</h1>
+      ${s.desc ? `<p class="body-text" style="margin-bottom:16px">${s.desc}</p>` : ""}
+      <div class="codewrap">
+        <div class="chead"><b>&gt;_</b> example.py</div>
+        <pre class="code">${renderCode(s.code)}</pre>
+      </div>
+      ${s.outText ? `
+      <div class="outwrap" style="margin-top:14px">
+        <div class="ohead">${s.outLabel || "פלט:"}</div>
+        <div class="obody">${s.outText}</div>
+      </div>` : ""}
+    `;
+  } else if(s.type === "exercises"){
+    el.innerHTML = `
+      <div class="eyebrow"><span class="dot"></span>${s.eyebrow}</div>
+      <h1 class="slide-title">${s.title}</h1>
+      ${s.desc ? `<p class="body-text" style="margin-bottom:6px">${s.desc}</p>` : ""}
+      <ul class="exlist">
+        ${s.items.map((it, idx) => `
+          <li>
+            <span class="tag ${it.tag}">${it.tag === "easy" ? "קל" : it.tag === "med" ? "בינוני" : "מאתגר"}</span>
+            <span class="exbody">${it.text}</span>
+            <span class="exnum">${idx+1}</span>
+          </li>
+        `).join("")}
+      </ul>
+    `;
+  }
+  return el;
+}
+
+(function initDeck(){
+  const viewport = document.getElementById("viewport");
+  const dotsNav = document.getElementById("dotsNav");
+  const fill = document.getElementById("progressFill");
+  const pgCur = document.getElementById("pg-cur");
+  const pgTotal = document.getElementById("pg-total");
+  const tbName = document.getElementById("tb-name");
+  if(tbName) tbName.textContent = (typeof FILE_NAME !== "undefined" ? FILE_NAME : "deck.py");
+
+  let cur = 0;
+  const n = SLIDES.length;
+  pgTotal.textContent = n;
+
+  SLIDES.forEach((s, i) => {
+    viewport.appendChild(buildSlide(s, i));
+    const dot = document.createElement("button");
+    dot.setAttribute("aria-label", "שקופית " + (i+1));
+    dot.addEventListener("click", () => go(i));
+    dotsNav.appendChild(dot);
+  });
+  const slideEls = Array.from(viewport.children);
+  const dotEls = Array.from(dotsNav.children);
+
+  function go(i){
+    cur = Math.max(0, Math.min(n-1, i));
+    slideEls.forEach((el, idx) => el.classList.toggle("active", idx === cur));
+    dotEls.forEach((el, idx) => el.classList.toggle("on", idx === cur));
+    fill.style.width = (n <= 1 ? 100 : (cur/(n-1))*100) + "%";
+    pgCur.textContent = cur + 1;
+  }
+  go(0);
+
+  document.getElementById("btnNext").addEventListener("click", () => go(cur+1));
+  document.getElementById("btnPrev").addEventListener("click", () => go(cur-1));
+  document.getElementById("btnFs").addEventListener("click", () => {
+    if(!document.fullscreenElement){ document.documentElement.requestFullscreen().catch(()=>{}); }
+    else { document.exitFullscreen().catch(()=>{}); }
+  });
+
+  window.addEventListener("keydown", (e) => {
+    if(["ArrowRight","PageDown"," ","Spacebar"].includes(e.key)){ go(cur+1); e.preventDefault(); }
+    else if(["ArrowLeft","PageUp"].includes(e.key)){ go(cur-1); e.preventDefault(); }
+    else if(e.key === "Home"){ go(0); e.preventDefault(); }
+    else if(e.key === "End"){ go(n-1); e.preventDefault(); }
+    else if(e.key === "f" || e.key === "F"){ document.getElementById("btnFs").click(); }
+  });
+
+  let touchX = null;
+  viewport.addEventListener("touchstart", (e) => { touchX = e.touches[0].clientX; }, {passive:true});
+  viewport.addEventListener("touchend", (e) => {
+    if(touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if(Math.abs(dx) > 50){ go(dx < 0 ? cur+1 : cur-1); }
+    touchX = null;
+  }, {passive:true});
+})();
+</script>
