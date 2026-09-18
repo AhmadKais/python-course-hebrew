@@ -1,0 +1,233 @@
+<title>מדריך מונחים לבחינה — עברית ⋄ ערבית ⋄ אנגלית</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;700;800&family=Assistant:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Cairo:wght@400;600;700;800&display=swap">
+<style>
+:root{
+  --page:      #eef1f7;
+  --paper:     #ffffff;
+  --paper-2:   #f8f9fc;
+  --ink:       #1c2333;
+  --ink-dim:   #5b6478;
+  --ink-faint: #8992a6;
+  --line:      #e3e6ef;
+  --line-strong:#cdd2e0;
+
+  --blue:      #1f7fae; --blue-tint:#eaf4fb; --blue-line:#bfe0f2;
+  --gold:      #96690a; --gold-tint:#fbf1de; --gold-line:#ecd6a2;
+  --coral:     #b8433d; --coral-tint:#fbebea; --coral-line:#f0c3c0;
+  --green:     #1f8f66; --green-tint:#e8f6ef; --green-line:#bfe6d3;
+  --violet:    #6a4fc4; --violet-tint:#efeafb; --violet-line:#d3c6f2;
+
+  --font-he:"Rubik","Assistant","Segoe UI","Arial Hebrew","Noto Sans Hebrew",sans-serif;
+  --font-he-body:"Assistant","Segoe UI","Arial Hebrew","Noto Sans Hebrew",sans-serif;
+  --font-ar:"Cairo","Noto Sans Arabic","Tahoma",sans-serif;
+  --font-en:"Assistant","Segoe UI",Arial,sans-serif;
+  --font-mono:"JetBrains Mono","Fira Code",ui-monospace,"Courier New",monospace;
+}
+
+*{ box-sizing:border-box; }
+body{
+  margin:0; background:var(--page); color:var(--ink);
+  font-family:var(--font-he-body); direction:rtl;
+  padding:clamp(20px,4vw,56px) 16px 80px;
+  -webkit-font-smoothing:antialiased;
+}
+.sheet{
+  max-width:980px; margin:0 auto; background:var(--paper);
+  border:1px solid var(--line); border-radius:14px;
+  box-shadow:0 24px 60px -30px rgba(28,35,51,.25);
+  padding:clamp(24px,5vw,52px);
+}
+
+/* ---------- header ---------- */
+.head{ border-bottom:3px double var(--line-strong); padding-bottom:20px; margin-bottom:26px; }
+.head .org{ font-family:var(--font-mono); font-size:13px; color:var(--ink-faint); letter-spacing:.02em; }
+.head h1{ font-family:var(--font-he); font-weight:800; font-size:clamp(22px,3.4vw,30px); margin:8px 0 6px; }
+.head .sub3{ display:flex; flex-wrap:wrap; gap:6px 10px; align-items:baseline; font-size:15px; color:var(--ink-dim); margin:0; }
+.head .sub3 b{ color:var(--ink); }
+
+.purpose{ margin-top:18px; display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+@media (max-width:720px){ .purpose{ grid-template-columns:1fr; } }
+.purpose .p{ border:1px solid var(--line); background:var(--paper-2); border-radius:10px; padding:12px 14px; }
+.purpose .p .tag{ font-family:var(--font-mono); font-size:10.5px; color:var(--ink-faint); display:block; margin-bottom:6px; letter-spacing:.03em; }
+.purpose .p.he p{ font-family:var(--font-he-body); direction:rtl; text-align:right; }
+.purpose .p.ar p{ font-family:var(--font-ar); direction:rtl; text-align:right; }
+.purpose .p.en p{ font-family:var(--font-en); direction:ltr; text-align:left; }
+.purpose .p p{ margin:0; font-size:13.5px; line-height:1.7; color:var(--ink-dim); }
+
+/* ---------- category section ---------- */
+.cat{ margin-top:40px; }
+.cat:first-of-type{ margin-top:34px; }
+.cat-head{ display:flex; align-items:baseline; gap:10px; border-bottom:2px solid var(--ink); padding-bottom:8px; margin-bottom:14px; }
+.cat-head .num{ font-family:var(--font-mono); font-size:13px; color:var(--paper); background:var(--ink); padding:3px 10px; border-radius:7px; }
+.cat-head h2{ font-family:var(--font-he); font-weight:800; font-size:19px; margin:0; }
+.cat-head .en-title{ font-family:var(--font-en); font-size:13.5px; color:var(--ink-faint); direction:ltr; }
+
+.gtable{ width:100%; border-collapse:collapse; font-size:14.5px; }
+.gtable th, .gtable td{ border:1px solid var(--line); padding:10px 13px; vertical-align:top; }
+.gtable th{ background:var(--paper-2); font-family:var(--font-he); font-weight:700; font-size:12.5px; color:var(--ink-dim); text-align:center; }
+.gtable td.he{ font-family:var(--font-he-body); direction:rtl; text-align:right; font-weight:600; width:34%; }
+.gtable td.ar{ font-family:var(--font-ar); direction:rtl; text-align:right; width:33%; color:#1c2333; }
+.gtable td.en{ font-family:var(--font-en); direction:ltr; text-align:left; width:33%; color:var(--ink-dim); }
+.gtable td.he code, .gtable td.ar code, .gtable td.en code{
+  font-family:var(--font-mono); background:var(--paper-2); padding:1px 6px; border-radius:5px; color:var(--blue);
+  direction:ltr; unicode-bidi:isolate; display:inline-block; font-size:.9em;
+}
+.gtable tr:nth-child(even) td{ background:#fbfcfe; }
+
+.note{ display:flex; gap:10px; align-items:flex-start; padding:11px 14px; border-radius:9px; margin:14px 0 0; background:var(--gold-tint); border:1px solid var(--gold-line); }
+.note p{ margin:0; font-size:13.5px; line-height:1.7; color:#5a4211; }
+.note.ar p{ font-family:var(--font-ar); direction:rtl; text-align:right; }
+
+footer.foot{ margin-top:44px; text-align:center; color:var(--ink-faint); font-size:12.5px; }
+
+@media print{
+  @page{ size:A4; margin:12mm 13mm; }
+  body{ background:#fff; padding:0; font-size:12.5px; }
+  .sheet{ box-shadow:none; border:none; border-radius:0; max-width:100%; padding:0; }
+  .cat{ page-break-inside:avoid; margin-top:22px; }
+  .gtable{ font-size:12px; }
+  .gtable th, .gtable td{ padding:6px 9px; }
+}
+</style>
+
+<div class="sheet">
+
+  <div class="head">
+    <span class="org">מכינה תקשוב · פייתון</span>
+    <h1>מדריך מונחים לבחינה — עברית ⋄ ערבית ⋄ אנגלית</h1>
+    <p class="sub3"><b>مرشد مصطلحات الامتحان</b> — عبري ⋄ عربي ⋄ إنجليزي &nbsp;·&nbsp; <b>Exam Language Guide</b> — Hebrew ⋄ Arabic ⋄ English</p>
+
+    <div class="purpose">
+      <div class="p he">
+        <span class="tag">למורה</span>
+        <p>מדריך זה מתרגם את כל הניסוחים והמונחים החוזרים בבחינה (הוראות, ניסוחי שאלות, מילון תכנות) לערבית ולאנגלית, עבור תלמידים ששפת האם שלהם ערבית ורמת האנגלית שלהם גבוהה מרמת העברית שלהם. אפשר לחלק אותו לתלמידים לפני הבחינה כחומר עזר להבנת הניסוח (לא לתוכן המקצועי).</p>
+      </div>
+      <div class="p ar">
+        <span class="tag">للطالب</span>
+        <p>يترجم هذا الدليل جميع التعليمات وصيغ الأسئلة المتكررة في الامتحان، بالإضافة إلى مصطلحات البرمجة، إلى العربية والإنجليزية. الهدف هو مساعدتكم على فهم <b>ماذا يُطلب منكم</b> في كل سؤال — وليس الإجابة عن المحتوى المهني بدلاً منكم.</p>
+      </div>
+      <div class="p en">
+        <span class="tag">For the student</span>
+        <p>This guide translates every recurring instruction and question phrasing in the exam — plus the programming vocabulary — into Arabic and English. It exists to help you understand <b>what each question is asking</b>, not to answer the technical content for you.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== A ===================== -->
+  <section class="cat">
+    <div class="cat-head"><span class="num">א</span><h2>כותרת ומידע כללי</h2><span class="en-title">Header &amp; general info</span></div>
+    <table class="gtable">
+      <tr><th>עברית</th><th>العربية</th><th>English</th></tr>
+      <tr><td class="he">מבחן מסכם</td><td class="ar">امتحان ختامي</td><td class="en">Final / summary exam</td></tr>
+      <tr><td class="he">משך הבחינה</td><td class="ar">مدة الامتحان</td><td class="en">Exam duration</td></tr>
+      <tr><td class="he">ניקוד מלא</td><td class="ar">العلامة الكاملة</td><td class="en">Full score / total points</td></tr>
+      <tr><td class="he">חומר עזר</td><td class="ar">مواد مساعدة</td><td class="en">Reference material</td></tr>
+      <tr><td class="he">אסור — סגור</td><td class="ar">ممنوع — كتاب مغلق</td><td class="en">Not allowed — closed book</td></tr>
+      <tr><td class="he">שם</td><td class="ar">الاسم</td><td class="en">Name</td></tr>
+      <tr><td class="he">ת.ז. / מ.ז.</td><td class="ar">رقم الهوية</td><td class="en">ID number</td></tr>
+      <tr><td class="he">תאריך</td><td class="ar">التاريخ</td><td class="en">Date</td></tr>
+    </table>
+  </section>
+
+  <!-- ===================== B ===================== -->
+  <section class="cat">
+    <div class="cat-head"><span class="num">ב</span><h2>הוראות כלליות</h2><span class="en-title">General instructions</span></div>
+    <table class="gtable">
+      <tr><th>עברית</th><th>العربية</th><th>English</th></tr>
+      <tr><td class="he">הבחינה כוללת שלושה חלקים</td><td class="ar">يتضمّن الامتحان ثلاثة أقسام</td><td class="en">The exam includes three parts</td></tr>
+      <tr><td class="he">חובה על כולן</td><td class="ar">إلزامي — الإجابة عن الجميع</td><td class="en">Mandatory — answer all of them</td></tr>
+      <tr><td class="he">יש לבחור ולענות על X מתוך Y שאלות</td><td class="ar">يجب اختيار والإجابة عن X من أصل Y أسئلة</td><td class="en">Choose and answer X out of Y questions</td></tr>
+      <tr><td class="he">יש לסמן בבירור אילו שאלות נבחרו</td><td class="ar">يجب تحديد الأسئلة المختارة بوضوح</td><td class="en">Clearly mark which questions were chosen</td></tr>
+      <tr><td class="he">לא תיבדק ולא תזכה בניקוד נוסף</td><td class="ar">لن يتم تصحيحها ولن تُحتسب نقاط إضافية عنها</td><td class="en">Will not be graded / no extra credit</td></tr>
+      <tr><td class="he">יש לכתוב את הפלט המדויק</td><td class="ar">يجب كتابة الناتج (المخرجات) بالضبط</td><td class="en">Write the exact output</td></tr>
+      <tr><td class="he">כולל רווחים ושורות</td><td class="ar">بما في ذلك المسافات والأسطر</td><td class="en">Including spaces and line breaks</td></tr>
+      <tr><td class="he">יש להשלים כל מקום מסומן</td><td class="ar">يجب إكمال كل مكان محدَّد</td><td class="en">Fill in every marked blank</td></tr>
+      <tr><td class="he">תוך שימוש בשמות המשתנים הקיימים בקוד</td><td class="ar">باستخدام أسماء المتغيّرات الموجودة في الكود</td><td class="en">Using the variable names already in the code</td></tr>
+      <tr><td class="he">אסור שימוש במחשבון, בטלפון, או בכל חומר עזר</td><td class="ar">ممنوع استخدام الآلة الحاسبة أو الهاتف أو أي مادة مساعدة</td><td class="en">No calculator, phone, or reference material allowed</td></tr>
+      <tr><td class="he">כתיבה בעט בלבד</td><td class="ar">الكتابة بالقلم فقط</td><td class="en">Pen only</td></tr>
+      <tr><td class="he">מומלץ (זמן)</td><td class="ar">موصى به (الوقت المقترح)</td><td class="en">Recommended (time budget)</td></tr>
+      <tr><td class="he">מרווח לבדיקה חוזרת</td><td class="ar">وقت إضافي للمراجعة</td><td class="en">Buffer time for review</td></tr>
+    </table>
+  </section>
+
+  <!-- ===================== C ===================== -->
+  <section class="cat">
+    <div class="cat-head"><span class="num">ג</span><h2>חלקי הבחינה</h2><span class="en-title">Exam parts</span></div>
+    <table class="gtable">
+      <tr><th>עברית</th><th>العربية</th><th>English</th></tr>
+      <tr><td class="he">חלק א׳ / ב׳ / ג׳</td><td class="ar">القسم أ / ب / ج</td><td class="en">Part A / B / C</td></tr>
+      <tr><td class="he">רב-ברירה</td><td class="ar">اختيار من متعدّد</td><td class="en">Multiple choice</td></tr>
+      <tr><td class="he">מעקב הרצה (Trace)</td><td class="ar">تتبّع تنفيذ الكود</td><td class="en">Code tracing / dry run</td></tr>
+      <tr><td class="he">השלמת קוד חסר</td><td class="ar">إكمال الكود الناقص</td><td class="en">Fill in missing code</td></tr>
+      <tr><td class="he">לכל שאלה תשובה נכונה אחת בדיוק</td><td class="ar">لكل سؤال إجابة صحيحة واحدة بالضبط</td><td class="en">Each question has exactly one correct answer</td></tr>
+      <tr><td class="he">הקיפו באות המתאימה</td><td class="ar">ضعوا دائرة حول الحرف المناسب</td><td class="en">Circle the matching letter</td></tr>
+    </table>
+  </section>
+
+  <!-- ===================== D ===================== -->
+  <section class="cat">
+    <div class="cat-head"><span class="num">ד</span><h2>ניסוחי שאלות נפוצים</h2><span class="en-title">Common question phrasings</span></div>
+    <table class="gtable">
+      <tr><th>עברית</th><th>العربية</th><th>English</th></tr>
+      <tr><td class="he">מה יודפס? / מה מדפיסה השורה הבאה?</td><td class="ar">ماذا سيُطبع؟ / ماذا تطبع السطر التالي؟</td><td class="en">What will be printed?</td></tr>
+      <tr><td class="he">מה מחזיר <code>...</code>?</td><td class="ar">ماذا يُرجع <code>...</code>؟</td><td class="en">What does <code>...</code> return?</td></tr>
+      <tr><td class="he">מה תוצאת הביטוי הבא?</td><td class="ar">ما ناتج التعبير التالي؟</td><td class="en">What is the result of the following expression?</td></tr>
+      <tr><td class="he">איזה מהבאים הוא ... חוקי</td><td class="ar">أيّ ممّا يلي هو ... صالح</td><td class="en">Which of the following is a valid ...</td></tr>
+      <tr><td class="he">מה ההבדל בין X לבין Y</td><td class="ar">ما الفرق بين X و Y</td><td class="en">What is the difference between X and Y</td></tr>
+      <tr><td class="he">מה יקרה בהרצת הקוד הבא?</td><td class="ar">ماذا سيحدث عند تشغيل الكود التالي؟</td><td class="en">What will happen when the following code runs?</td></tr>
+      <tr><td class="he">מלאו את טבלת המעקב שורה-שורה</td><td class="ar">املأوا جدول التتبّع سطرًا سطرًا</td><td class="en">Fill in the trace table, line by line</td></tr>
+      <tr><td class="he">בלי להריץ בפועל!</td><td class="ar">دون تشغيله فعليًا!</td><td class="en">Without actually running it!</td></tr>
+      <tr><td class="he">כתבו את הפלט הסופי המדויק</td><td class="ar">اكتبوا الناتج النهائي بالضبط</td><td class="en">Write the exact final output</td></tr>
+      <tr><td class="he">שימו לב ל...</td><td class="ar">انتبهوا إلى / لاحظوا أنّ...</td><td class="en">Pay attention to / note that...</td></tr>
+      <tr><td class="he">התוכנית הבאה מבקשת מהמשתמש להזין...</td><td class="ar">البرنامج التالي يطلب من المستخدم إدخال...</td><td class="en">The following program asks the user to enter...</td></tr>
+      <tr><td class="he">קלט מהמשתמש, מומר למספר עשרוני / שלם</td><td class="ar">إدخال من المستخدم، محوَّل إلى عدد عشري / صحيح</td><td class="en">Input from the user, converted to a float / integer</td></tr>
+      <tr><td class="he">אחרת</td><td class="ar">وإلا (في حال عدم تحقّق الشرط)</td><td class="en">Otherwise</td></tr>
+      <tr><td class="he">בסיום, בכל מקרה</td><td class="ar">في النهاية، في كل الأحوال</td><td class="en">At the end, regardless (in either case)</td></tr>
+      <tr><td class="he">אל תמציאו משתנים חדשים</td><td class="ar">لا تخترعوا متغيّرات جديدة</td><td class="en">Don't invent new variables</td></tr>
+      <tr><td class="he">השאירו תא ריק אם השורה לא משנה ערך</td><td class="ar">اتركوا الخانة فارغة إذا كان السطر لا يغيّر القيمة</td><td class="en">Leave the cell blank if the line doesn't change the value</td></tr>
+    </table>
+  </section>
+
+  <!-- ===================== E ===================== -->
+  <section class="cat">
+    <div class="cat-head"><span class="num">ה</span><h2>מילון מונחי תכנות</h2><span class="en-title">Programming vocabulary</span></div>
+    <table class="gtable">
+      <tr><th>עברית</th><th>العربية</th><th>English</th></tr>
+      <tr><td class="he">משתנה</td><td class="ar">متغيّر</td><td class="en">Variable</td></tr>
+      <tr><td class="he">אופרטור</td><td class="ar">عامل / مؤثّر</td><td class="en">Operator</td></tr>
+      <tr><td class="he">מחרוזת</td><td class="ar">سلسلة نصية</td><td class="en">String</td></tr>
+      <tr><td class="he">תנאי</td><td class="ar">شرط</td><td class="en">Condition</td></tr>
+      <tr><td class="he">קלט</td><td class="ar">إدخال</td><td class="en">Input</td></tr>
+      <tr><td class="he">פלט</td><td class="ar">ناتج / إخراج</td><td class="en">Output</td></tr>
+      <tr><td class="he">הזחה</td><td class="ar">إزاحة (مسافة بادئة)</td><td class="en">Indentation</td></tr>
+      <tr><td class="he">שגיאה</td><td class="ar">خطأ</td><td class="en">Error</td></tr>
+      <tr><td class="he">מספר שלם</td><td class="ar">عدد صحيح</td><td class="en">Integer</td></tr>
+      <tr><td class="he">מספר עשרוני</td><td class="ar">عدد عشري</td><td class="en">Float / decimal number</td></tr>
+      <tr><td class="he">טיפוס (סוג)</td><td class="ar">نوع</td><td class="en">Type</td></tr>
+      <tr><td class="he">הצבה</td><td class="ar">إسناد</td><td class="en">Assignment</td></tr>
+      <tr><td class="he">השוואה</td><td class="ar">مقارنة</td><td class="en">Comparison</td></tr>
+      <tr><td class="he">אינדקס</td><td class="ar">فهرس / رقم الموضع</td><td class="en">Index</td></tr>
+      <tr><td class="he">אורך (<code>len</code>)</td><td class="ar">طول</td><td class="en">Length</td></tr>
+      <tr><td class="he">תו</td><td class="ar">حرف</td><td class="en">Character</td></tr>
+      <tr><td class="he">מילה שמורה</td><td class="ar">كلمة محجوزة</td><td class="en">Reserved word / keyword</td></tr>
+      <tr><td class="he">בלוק קוד</td><td class="ar">كتلة برمجية</td><td class="en">Code block</td></tr>
+      <tr><td class="he">הדפסה (<code>print</code>)</td><td class="ar">طباعة</td><td class="en">Printing</td></tr>
+      <tr><td class="he">הרצה / ריצה</td><td class="ar">تشغيل / تنفيذ</td><td class="en">Running / execution</td></tr>
+      <tr><td class="he">צירוף (הצמדה) של מחרוזות</td><td class="ar">دمج / ضمّ سلاسل نصية</td><td class="en">String concatenation</td></tr>
+    </table>
+  </section>
+
+  <!-- ===================== F ===================== -->
+  <section class="cat">
+    <div class="cat-head"><span class="num">ו</span><h2>מחוון המורה (לעיון המורה בלבד)</h2><span class="en-title">Teacher's key (teacher reference only)</span></div>
+    <table class="gtable">
+      <tr><th>עברית</th><th>العربية</th><th>English</th></tr>
+      <tr><td class="he">מחוון למורה</td><td class="ar">مفتاح الإجابات للمعلّم</td><td class="en">Teacher's answer key</td></tr>
+      <tr><td class="he">לא לחלוקה לתלמידים</td><td class="ar">غير مخصّص للتوزيع على الطلاب</td><td class="en">Not for distribution to students</td></tr>
+      <tr><td class="he">פלט מדויק</td><td class="ar">الناتج بالضبط</td><td class="en">Exact output</td></tr>
+    </table>
+    <div class="note ar"><p>ملاحظة للمعلّم: هذا القسم موجود فقط لتوضيح المصطلحات التي تظهر في مفتاح الإجابات نفسه — وليس إجابات الأسئلة.</p></div>
+  </section>
+
+  <footer class="foot">מכינה תקשוב · פייתון — מדריך מונחים לבחינה (עברית ⋄ ערבית ⋄ אנגלית)</footer>
+</div>

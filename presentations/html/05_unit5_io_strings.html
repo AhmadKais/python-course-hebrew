@@ -1,0 +1,816 @@
+<title>יחידה 5 · קלט ופלט ועבודה עם מחרוזות</title>
+<style>
+/* ============================================================
+   DESIGN SYSTEM
+   Concept: the deck itself is staged as a code editor / terminal
+   window (title-bar dots, file tab) — grounded in the subject
+   (learning to code) rather than a generic slide template.
+   Committed single dark "editor" world by design (like a themed
+   terminal), the same way a themed arcade screen stays single-mode.
+   Font stack is an intentional native Hebrew system stack: the
+   Artifact sandbox blocks external font fetches, so rather than
+   link a webfont that silently falls back, we design directly
+   for the Hebrew system faces students' machines already have.
+   ============================================================ */
+:root{
+  --bg:            #0f1420;
+  --bg-panel:      #161c2c;
+  --bg-panel-2:    #1b2338;
+  --bg-titlebar:   #10151f;
+  --ink:           #e9edf6;
+  --ink-dim:       #939bb8;
+  --ink-faint:     #5c6485;
+  --line:          #2a3350;
+  --line-soft:     #212a44;
+
+  --blue:          #55c6f2;
+  --blue-dim:      #2d4a63;
+  --gold:          #ffd166;
+  --gold-dim:      #5a4a2c;
+  --coral:         #ff7a7a;
+  --coral-dim:     #5a2f34;
+  --green:         #6fe3b4;
+  --green-dim:     #204538;
+  --violet:        #bda2f2;
+  --violet-dim:    #3a2f57;
+
+  --font-display: "Rubik", "Segoe UI Variable Display", "Segoe UI", "Arial Hebrew", "Noto Sans Hebrew", "Heebo", "Arial", sans-serif;
+  --font-body:    "Assistant", "Segoe UI", "Arial Hebrew", "Noto Sans Hebrew", "Heebo", "Arial", sans-serif;
+  --font-mono:    "JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace, "SF Mono", Consolas, "Courier New", monospace;
+
+  --radius: 18px;
+  --shadow: 0 30px 80px -20px rgba(0,0,0,.65), 0 10px 30px -12px rgba(0,0,0,.5);
+}
+:root[data-theme="light"], :root[data-theme="dark"]{
+  /* Deliberately single-themed (see note above) — both branches keep the editor palette. */
+  --bg:#0f1420; --bg-panel:#161c2c; --bg-panel-2:#1b2338; --bg-titlebar:#10151f;
+  --ink:#e9edf6; --ink-dim:#939bb8; --ink-faint:#5c6485; --line:#2a3350; --line-soft:#212a44;
+}
+
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0;
+  background:
+    radial-gradient(1100px 620px at 12% -8%, #1a2440 0%, transparent 60%),
+    radial-gradient(900px 560px at 108% 8%, #1c1f3a 0%, transparent 55%),
+    var(--bg);
+  color:var(--ink);
+  font-family:var(--font-body);
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{ background:var(--blue); color:#0f1420; }
+
+/* ---------- stage & deck window ---------- */
+.stage{
+  position:fixed; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  padding:clamp(10px,3vh,34px) clamp(10px,3vw,34px);
+}
+.deck{
+  position:relative;
+  width:min(1180px, 96vw);
+  height:min(720px, 92vh);
+  background:linear-gradient(180deg, var(--bg-panel), var(--bg-panel-2));
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  display:flex; flex-direction:column;
+  overflow:hidden;
+}
+.titlebar{
+  display:flex; align-items:center; gap:14px;
+  padding:12px 18px;
+  background:var(--bg-titlebar);
+  border-bottom:1px solid var(--line);
+  direction:ltr; /* window chrome is a UI artifact, always LTR like a real editor */
+}
+.tb-dots{ display:flex; gap:7px; }
+.tb-dots span{ width:11px; height:11px; border-radius:50%; display:block; }
+.tb-dots span:nth-child(1){ background:#ff6159; }
+.tb-dots span:nth-child(2){ background:#ffbd2e; }
+.tb-dots span:nth-child(3){ background:#28c93f; }
+.tb-tab{
+  font-family:var(--font-mono);
+  font-size:12.5px;
+  color:var(--ink-dim);
+  background:var(--bg-panel);
+  border:1px solid var(--line);
+  border-bottom:none;
+  padding:5px 12px 6px;
+  border-radius:8px 8px 0 0;
+  margin-inline-start:6px;
+}
+.tb-tab b{ color:var(--gold); font-weight:600; }
+.tb-spacer{ flex:1; }
+.tb-progress-label{
+  font-family:var(--font-mono); font-size:12px; color:var(--ink-faint);
+  font-variant-numeric:tabular-nums;
+}
+
+.progress-track{ height:3px; background:var(--line-soft); position:relative; }
+.progress-fill{ position:absolute; inset-inline-start:0; top:0; bottom:0; width:0%;
+  background:linear-gradient(90deg, var(--blue), var(--green));
+  transition:width .35s ease; }
+
+/* ---------- slide viewport ---------- */
+.viewport{ position:relative; flex:1; overflow:hidden; }
+.slide{
+  position:absolute; inset:0;
+  display:flex; flex-direction:column;
+  padding:clamp(26px,4.4vh,52px) clamp(34px,6vw,76px);
+  opacity:0; transform:translateY(14px) scale(.99);
+  pointer-events:none;
+  transition:opacity .38s ease, transform .38s ease;
+  overflow-y:auto;
+  direction:rtl;
+}
+.slide.active{ opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
+@media (prefers-reduced-motion: reduce){
+  .slide{ transition:opacity .01s linear; transform:none; }
+}
+
+.eyebrow{
+  font-family:var(--font-mono); font-size:13px; letter-spacing:.02em;
+  color:var(--blue); display:flex; align-items:center; gap:8px; margin-bottom:14px;
+  direction:ltr; justify-content:flex-end;
+}
+.eyebrow .dot{ width:6px; height:6px; border-radius:50%; background:var(--blue); }
+
+h1.slide-title{
+  font-family:var(--font-display); font-weight:700;
+  font-size:clamp(28px,4.4vh,44px); line-height:1.15; margin:0 0 .4em;
+  text-wrap:balance; color:var(--ink);
+}
+h1.slide-title .accent{ color:var(--gold); }
+h2.slide-sub{
+  font-family:var(--font-body); font-weight:500; color:var(--ink-dim);
+  font-size:clamp(15px,2.2vh,19px); margin:0 0 1.1em; line-height:1.6; max-width:62ch;
+}
+
+.body-text{ font-size:clamp(15px,2.1vh,18px); line-height:1.75; color:var(--ink); max-width:70ch; }
+.body-text + .body-text{ margin-top:.8em; }
+
+/* ---------- title slide ---------- */
+.slide.title-slide{ align-items:center; justify-content:center; text-align:center; }
+.title-slide .kicker{
+  font-family:var(--font-mono); color:var(--green); font-size:14px;
+  border:1px solid var(--green-dim); background:rgba(111,227,180,.08);
+  padding:6px 16px; border-radius:999px; margin-bottom:26px; direction:ltr;
+}
+.title-slide h1{
+  font-family:var(--font-display); font-weight:800;
+  font-size:clamp(38px,7vh,68px); line-height:1.08; margin:0 0 .3em; text-wrap:balance;
+}
+.title-slide .py-mark{ color:var(--blue); }
+.title-slide .py-mark2{ color:var(--gold); }
+.title-slide p{ color:var(--ink-dim); font-size:clamp(16px,2.4vh,21px); max-width:56ch; margin:0 auto; line-height:1.6; }
+.prompt-line{
+  margin-top:36px; font-family:var(--font-mono); color:var(--ink-faint); font-size:15px; direction:ltr;
+}
+.prompt-line .caret{ display:inline-block; width:9px; height:1.1em; background:var(--green); margin-inline-start:4px; vertical-align:-2px;
+  animation:blink 1.1s steps(1) infinite; }
+@keyframes blink{ 50%{ opacity:0; } }
+@media (prefers-reduced-motion: reduce){ .prompt-line .caret{ animation:none; } }
+
+/* ---------- icon grid (industries etc.) ---------- */
+.grid{ display:grid; gap:16px; margin-top:8px; }
+.grid.cols-4{ grid-template-columns:repeat(4,1fr); }
+.grid.cols-3{ grid-template-columns:repeat(3,1fr); }
+.grid.cols-2{ grid-template-columns:repeat(2,1fr); }
+.card{
+  background:var(--bg-titlebar); border:1px solid var(--line); border-radius:14px;
+  padding:16px 16px 15px; display:flex; flex-direction:column; gap:8px;
+}
+.card .icon{ width:34px; height:34px; }
+.card h3{ margin:2px 0 0; font-family:var(--font-display); font-size:15.5px; font-weight:700; color:var(--ink); }
+.card p{ margin:0; font-size:13.5px; line-height:1.55; color:var(--ink-dim); }
+.card.blue .icon{ color:var(--blue); } .card.blue{ border-color:var(--blue-dim); }
+.card.gold .icon{ color:var(--gold); } .card.gold{ border-color:var(--gold-dim); }
+.card.coral .icon{ color:var(--coral); } .card.coral{ border-color:var(--coral-dim); }
+.card.green .icon{ color:var(--green); } .card.green{ border-color:var(--green-dim); }
+.card.violet .icon{ color:var(--violet); } .card.violet{ border-color:var(--violet-dim); }
+
+/* ---------- badge chips (companies, tags) ---------- */
+.chiprow{ display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; direction:rtl; }
+.chip{
+  font-family:var(--font-mono); font-size:13.5px; color:var(--ink);
+  background:var(--bg-titlebar); border:1px solid var(--line);
+  padding:7px 14px; border-radius:999px; direction:ltr;
+}
+
+/* ---------- two-col layout ---------- */
+.split{ display:grid; grid-template-columns:1.1fr .9fr; gap:34px; align-items:center; flex:1; }
+.split .art{ display:flex; align-items:center; justify-content:center; }
+
+/* ---------- code block ---------- */
+.codewrap{
+  background:#0c1019; border:1px solid var(--line); border-radius:12px; overflow:hidden;
+  direction:ltr; text-align:left;
+}
+.codewrap .chead{
+  display:flex; align-items:center; gap:8px; padding:8px 12px; background:var(--bg-titlebar);
+  border-bottom:1px solid var(--line); font-family:var(--font-mono); font-size:11.5px; color:var(--ink-faint);
+}
+.codewrap .chead b{ color:var(--green); font-weight:600; }
+pre.code{
+  margin:0; padding:16px 18px; font-family:var(--font-mono); font-size:14.5px; line-height:1.7;
+  overflow-x:auto; direction:ltr; text-align:left; white-space:pre;
+}
+.tok-kw{ color:var(--violet); font-weight:600; }
+.tok-str{ color:var(--gold); }
+.tok-num{ color:var(--coral); }
+.tok-com{ color:var(--ink-faint); font-style:italic; }
+.tok-fn{ color:var(--blue); }
+.tok-var{ color:#9fd3ff; }
+.tok-punc{ color:var(--ink-dim); }
+
+.outwrap{ background:#0a0d14; border:1px solid var(--line); border-radius:12px; overflow:hidden; direction:ltr; text-align:left; }
+.outwrap .ohead{ padding:8px 12px; background:var(--bg-titlebar); border-bottom:1px solid var(--line);
+  font-family:var(--font-mono); font-size:11.5px; color:var(--ink-faint); }
+.outwrap .obody{ padding:14px 18px; font-family:var(--font-mono); font-size:14.5px; color:var(--green); white-space:pre-wrap; line-height:1.7; }
+
+/* ---------- exercise list ---------- */
+.exlist{ list-style:none; margin:10px 0 0; padding:0; display:flex; flex-direction:column; gap:12px; }
+.exlist li{
+  display:flex; gap:14px; align-items:flex-start;
+  background:var(--bg-titlebar); border:1px solid var(--line); border-radius:12px; padding:13px 16px;
+}
+.exnum{
+  flex:none; width:26px; height:26px; border-radius:8px; background:var(--bg-panel-2);
+  border:1px solid var(--line); display:flex; align-items:center; justify-content:center;
+  font-family:var(--font-mono); font-size:13px; color:var(--ink-dim); font-variant-numeric:tabular-nums;
+}
+.exbody{ flex:1; font-size:15px; line-height:1.6; }
+.exbody code{ font-family:var(--font-mono); background:var(--bg-panel-2); padding:1px 6px; border-radius:5px; color:var(--gold); direction:ltr; unicode-bidi:isolate; display:inline-block; }
+.tag{
+  flex:none; font-family:var(--font-mono); font-size:11px; padding:3px 9px; border-radius:999px;
+  height:fit-content; direction:ltr;
+}
+.tag.easy{ background:var(--green-dim); color:var(--green); }
+.tag.med{ background:var(--gold-dim); color:var(--gold); }
+.tag.hard{ background:var(--coral-dim); color:var(--coral); }
+
+/* ---------- callouts ---------- */
+.callout{ display:flex; gap:12px; align-items:flex-start; padding:14px 16px; border-radius:12px; margin-top:14px; }
+.callout .icon{ width:22px; height:22px; flex:none; margin-top:2px; }
+.callout p{ margin:0; font-size:14.5px; line-height:1.6; }
+.callout.warn{ background:rgba(255,122,122,.08); border:1px solid var(--coral-dim); }
+.callout.warn .icon{ color:var(--coral); }
+.callout.tip{ background:rgba(111,227,180,.08); border:1px solid var(--green-dim); }
+.callout.tip .icon{ color:var(--green); }
+
+ul.plain, ol.plain{ margin:10px 0 0; padding-inline-start:1.3em; display:flex; flex-direction:column; gap:9px; }
+ul.plain li, ol.plain li{ font-size:15.5px; line-height:1.65; }
+ul.plain li::marker{ color:var(--blue); }
+strong.hl{ color:var(--gold); font-weight:700; }
+strong.hl2{ color:var(--blue); font-weight:700; }
+
+/* ---------- roadmap timeline ---------- */
+.roadmap{ display:flex; flex-direction:column; gap:10px; margin-top:10px; }
+.rgroup{ display:flex; gap:14px; align-items:stretch; }
+.rgroup .rlabel{
+  flex:none; width:118px; display:flex; align-items:center; justify-content:center; text-align:center;
+  font-family:var(--font-display); font-weight:700; font-size:13.5px; border-radius:10px; padding:10px 6px;
+}
+.rgroup .ritems{ flex:1; display:flex; flex-wrap:wrap; gap:8px; align-content:center; }
+.rchip{ background:var(--bg-titlebar); border:1px solid var(--line); border-radius:8px; padding:7px 12px; font-size:13px; color:var(--ink-dim); }
+.rgroup.p1 .rlabel{ background:var(--blue-dim); color:var(--blue); }
+.rgroup.p2 .rlabel{ background:var(--gold-dim); color:var(--gold); }
+.rgroup.p3 .rlabel{ background:var(--violet-dim); color:var(--violet); }
+.rgroup.p4 .rlabel{ background:var(--green-dim); color:var(--green); }
+
+/* ---------- controls ---------- */
+.controls{
+  position:absolute; bottom:16px; inset-inline-end:16px; display:flex; gap:8px; z-index:5;
+  direction:ltr;
+}
+.ctrl-btn{
+  width:40px; height:40px; border-radius:10px; border:1px solid var(--line);
+  background:var(--bg-titlebar); color:var(--ink-dim); display:flex; align-items:center; justify-content:center;
+  cursor:pointer; transition:background .15s, color .15s, border-color .15s;
+}
+.ctrl-btn:hover{ background:var(--bg-panel-2); color:var(--ink); border-color:var(--blue-dim); }
+.ctrl-btn:focus-visible{ outline:2px solid var(--blue); outline-offset:2px; }
+.ctrl-btn svg{ width:18px; height:18px; }
+
+.dots-nav{ position:absolute; bottom:20px; inset-inline-start:20px; display:flex; gap:6px; z-index:5; direction:ltr; }
+.dots-nav button{
+  width:7px; height:7px; border-radius:50%; border:none; background:var(--line); cursor:pointer; padding:0;
+}
+.dots-nav button.on{ background:var(--blue); width:20px; border-radius:4px; }
+
+.hint{ position:absolute; bottom:18px; left:50%; transform:translateX(-50%); font-family:var(--font-mono);
+  font-size:11.5px; color:var(--ink-faint); z-index:4; }
+
+@media (max-width:760px){
+  .split{ grid-template-columns:1fr; }
+  .grid.cols-4{ grid-template-columns:repeat(2,1fr); }
+  .grid.cols-3{ grid-template-columns:repeat(2,1fr); }
+}
+</style>
+
+<div class="stage">
+  <div class="deck" id="deck">
+    <div class="titlebar">
+      <div class="tb-dots"><span></span><span></span><span></span></div>
+      <div class="tb-tab"><b>py</b>_course — <span id="tb-name">00_intro.py</span></div>
+      <div class="tb-spacer"></div>
+      <div class="tb-progress-label"><span id="pg-cur">1</span> / <span id="pg-total">1</span></div>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="viewport" id="viewport"></div>
+    <div class="dots-nav" id="dotsNav"></div>
+    <div class="controls">
+      <button class="ctrl-btn" id="btnFs" title="מסך מלא" aria-label="מסך מלא">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4M20 15v4a1 1 0 0 1-1 1h-4"/></svg>
+      </button>
+      <button class="ctrl-btn" id="btnPrev" title="הקודם" aria-label="הקודם">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <button class="ctrl-btn" id="btnNext" title="הבא" aria-label="הבא">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<svg width="0" height="0" style="position:absolute">
+<defs>
+<symbol id="ic-brain" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M9 4a3 3 0 0 0-3 3v.3A3 3 0 0 0 4 10v1a3 3 0 0 0 1 2.2V15a3 3 0 0 0 3 3h1v2M9 4a3 3 0 0 1 3 3v13M9 4h1M4 10h2M4.2 13.5H7"/>
+  <path d="M15 4a3 3 0 0 1 3 3v.3a3 3 0 0 1 2 2.7v1a3 3 0 0 1-1 2.2V15a3 3 0 0 1-3 3h-1"/>
+  <path d="M15 4a3 3 0 0 0-3 3M18 10h2M19.8 13.5H17"/>
+</symbol>
+<symbol id="ic-terminal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/>
+</symbol>
+<symbol id="ic-cpu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9" y="9" width="6" height="6" rx="1"/>
+  <path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/>
+</symbol>
+<symbol id="ic-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.7 2.6 4 5.7 4 9s-1.3 6.4-4 9c-2.7-2.6-4-5.7-4-9s1.3-6.4 4-9Z"/>
+</symbol>
+<symbol id="ic-robot" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="5" y="9" width="14" height="10" rx="2"/><circle cx="9.5" cy="14" r="1.2" fill="currentColor" stroke="none"/><circle cx="14.5" cy="14" r="1.2" fill="currentColor" stroke="none"/>
+  <path d="M12 9V6M9 6h6M4 13H2M22 13h-2"/>
+</symbol>
+<symbol id="ic-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M4 20V10M10 20V4M16 20v-7M4 20h16"/>
+</symbol>
+<symbol id="ic-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12 3l7 3v6c0 4.5-3 7.7-7 9-4-1.3-7-4.5-7-9V6l7-3Z"/><path d="M9 12l2 2 4-4"/>
+</symbol>
+<symbol id="ic-network" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="4.5" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/>
+  <path d="M12 6.5v4M12 10.5 6 16M12 10.5l6 5.5"/>
+</symbol>
+<symbol id="ic-rocket" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12 2c3 1.5 5 5 5 9 0 2-1 4-2 5l-3 2-3-2c-1-1-2-3-2-5 0-4 2-7.5 5-9Z"/><circle cx="12" cy="9" r="1.6"/>
+  <path d="M9 16l-2 4M15 16l2 4M9 20h6"/>
+</symbol>
+<symbol id="ic-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="12" r="3.2"/><path d="M12 3v2.4M12 18.6V21M21 12h-2.4M5.4 12H3M18 6l-1.7 1.7M7.7 16.3 6 18M18 18l-1.7-1.7M7.7 7.7 6 6"/>
+</symbol>
+<symbol id="ic-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5v-15Z"/><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20"/>
+</symbol>
+<symbol id="ic-gamepad" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M6 9h12l2 7a2 2 0 0 1-3.5 1.8L15 16H9l-1.5 1.8A2 2 0 0 1 4 16l2-7Z"/><path d="M8 12h2M9 11v2M16 11.5h.01M18 13h.01"/>
+</symbol>
+<symbol id="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M20 6 9 17l-5-5"/>
+</symbol>
+<symbol id="ic-warn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12 3 2 20h20L12 3Z"/><path d="M12 9v5M12 17h.01"/>
+</symbol>
+<symbol id="ic-bulb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M9 18h6M10 21h4M7 9a5 5 0 1 1 8.7 3.4c-.8.9-1.7 1.7-1.7 3.1v.5H10v-.5c0-1.4-.9-2.2-1.7-3.1A5 5 0 0 1 7 9Z"/>
+</symbol>
+<symbol id="ic-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/>
+</symbol>
+</defs>
+</svg>
+
+<script>
+/* ============================================================
+   SLIDE DATA — deck 5: קלט ופלט ועבודה עם מחרוזות
+   ============================================================ */
+const FILE_NAME = "05_io_strings.py";
+const SLIDES = [
+
+{ type:"title", kicker:"מכינה תקשוב &middot; יחידה 5", title:'קלט <span class="py-mark">ופלט</span> <span class="py-mark2">ומחרוזות</span>',
+  sub:"עד עכשיו התוכניות שלנו רק דיברו אלינו. היום הן גם מקשיבות.",
+  prompt:'>>> name = input("מה שמך? ") <span class="caret"></span>' },
+
+{ type:"content", eyebrow:"תזכורת מהיחידה הקודמת", title:"מה <span class='accent'>למדנו</span> ביחידה 4?",
+  body:`
+  <ul class="plain">
+    <li>שם משתנה טוב <strong class="hl2">מתאר</strong> מה הוא מייצג, לא רק "עובד טכנית"</li>
+    <li>מוסכמת <strong class="hl2">snake_case</strong> — אותיות קטנות עם קו תחתון בין מילים</li>
+    <li><strong class="hl">מילים שמורות</strong> כמו <code style="font-family:var(--font-mono)">if</code>, <code style="font-family:var(--font-mono)">for</code>, <code style="font-family:var(--font-mono)">True</code> אסורות כשם משתנה</li>
+    <li>הערות (<code style="font-family:var(--font-mono)">#</code>) מסבירות <strong class="hl">למה</strong>, לא רק מה הקוד עושה</li>
+  </ul>
+  <div class="callout tip" style="margin-top:22px">
+    <svg class="icon" viewBox="0 0 24 24"><use href="#ic-bulb"/></svg>
+    <p>עד עכשיו כל הערכים במשתנים שלנו היו קבועים מראש בקוד. היום נלמד איך לקבל ערכים <strong>מהמשתמש</strong>, בזמן ריצה.</p>
+  </div>` },
+
+{ type:"content", eyebrow:"מטרות השיעור", title:"מה <span class='accent'>נלמד</span> היום?",
+  body:`
+  <ul class="plain">
+    <li>ההבדל בין <strong class="hl2">פלט</strong> (מה התוכנית אומרת) ל<strong class="hl2">קלט</strong> (מה המשתמש מקליד)</li>
+    <li>איך מקבלים נתונים מהמשתמש בעזרת <strong class="hl2">input()</strong></li>
+    <li>למה <strong class="hl">חייבים להמיר טיפוסים</strong> — <code style="font-family:var(--font-mono)">int()</code>, <code style="font-family:var(--font-mono)">float()</code> ו-<code style="font-family:var(--font-mono)">str()</code></li>
+    <li>פעולות בסיסיות על <strong class="hl">מחרוזות</strong>: חיבור, כפל, אורך ואינדוקס</li>
+  </ul>` },
+
+{ type:"content", eyebrow:"לפני שמתחילים", title:"<span class='accent'>פלט</span> לעומת <span class='accent'>קלט</span>",
+  body:`
+  <p class="body-text">כל תוכנית שכתבנו עד עכשיו הייתה <strong class="hl2">חד-כיוונית</strong>: היא מדפיסה פלט אלינו, אבל לא יכולה לקבל שום דבר מאיתנו תוך כדי ריצה.</p>
+  <div class="grid cols-2">
+    <div class="card blue"><h3 style="font-family:var(--font-mono)">print()</h3><p><strong>פלט</strong> — התוכנית "מדברת" אלינו, מציגה מידע על המסך</p></div>
+    <div class="card gold"><h3 style="font-family:var(--font-mono)">input()</h3><p><strong>קלט</strong> — התוכנית "מקשיבה" לנו, מחכה שנקליד משהו</p></div>
+  </div>
+  <div class="callout tip" style="margin-top:16px">
+    <svg class="icon" viewBox="0 0 24 24"><use href="#ic-bulb"/></svg>
+    <p>קלט הוא מה שהופך תוכנית מ"מציגה תמיד אותו דבר" לתוכנית <strong>אינטראקטיבית</strong> שמגיבה לכל משתמש אחרת.</p>
+  </div>` },
+
+{ type:"content", eyebrow:"הפונקציה החדשה", title:"איך עובדת <span class='accent'>input()</span>?",
+  body:`
+  <ul class="plain">
+    <li>הפונקציה <code style="font-family:var(--font-mono)">input()</code> <strong class="hl2">עוצרת</strong> את התוכנית, ומחכה שהמשתמש יקליד משהו וילחץ Enter</li>
+    <li>אפשר להעביר לה <strong class="hl2">הודעה</strong> (prompt) שתוצג למשתמש לפני שהוא מקליד</li>
+    <li>מה שהמשתמש הקליד <strong class="hl">מוחזר</strong> מהפונקציה, ואפשר לשמור אותו במשתנה</li>
+  </ul>` },
+
+{ type:"code", eyebrow:"דוגמה", title:"<span class='accent'>input()</span> ראשון",
+  desc:"מבקשים מהמשתמש את שמו, ומברכים אותו:",
+  code:[
+    {t:"tok-var",c:"name"},{t:"tok-punc",c:" = "},{t:"tok-fn",c:"input"},{t:"tok-punc",c:"("},{t:"tok-str",c:'"מה שמך? "'},{t:"tok-punc",c:")"},{t:"",c:"\n"},
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"("},{t:"tok-str",c:'"שלום,"'},{t:"tok-punc",c:", "},{t:"tok-var",c:"name"},{t:"tok-punc",c:")"},
+  ],
+  outLabel:"בזמן ריצה (המשתמש הקליד \"דניאל\"):", outText:"מה שמך? דניאל\nשלום, דניאל" },
+
+{ type:"exercises", eyebrow:"תרגול מיידי", title:"נסו <span class='accent'>עכשיו</span>",
+  desc:"קחו שתי דקות ונסו בעצמכם:",
+  items:[
+    {tag:"easy", text:"בקשו מהמשתמש את העיר שבה הוא גר בעזרת <code>input()</code>, ושמרו את התוצאה במשתנה בשם <code>city</code>. הדפיסו משפט שמזכיר את העיר."},
+    {tag:"easy", text:"בקשו מהמשתמש שני דברים בזו אחר זו — שם וצבע אהוב — ואז הדפיסו אותם יחד במשפט אחד."},
+  ]},
+
+{ type:"content", eyebrow:"נקודה קריטית", title:"input() תמיד מחזירה <span class='accent'>מחרוזת</span>",
+  body:`
+  <p class="body-text">גם אם המשתמש מקליד מספר, כמו <code style="font-family:var(--font-mono)">25</code> — Python תשמור אותו כ<strong class="hl2">מחרוזת</strong> (<code style="font-family:var(--font-mono)">str</code>), לא כמספר. זו אחת הטעויות הכי נפוצות של מתחילים.</p>
+  <div class="callout warn">
+    <svg class="icon" viewBox="0 0 24 24"><use href="#ic-warn"/></svg>
+    <p>אי אפשר לבצע חישוב אריתמטי (כמו חיבור מספרים) על ערך שהתקבל מ-<code style="font-family:var(--font-mono)">input()</code> בלי להמיר אותו קודם לטיפוס מספרי.</p>
+  </div>` },
+
+{ type:"code", eyebrow:"דוגמה · שגיאה", title:"מה קורה בלי <span class='accent'>המרה</span>?",
+  desc:"ננסה לחבר 1 לגיל שהמשתמש הקליד:",
+  code:[
+    {t:"tok-var",c:"age"},{t:"tok-punc",c:" = "},{t:"tok-fn",c:"input"},{t:"tok-punc",c:"("},{t:"tok-str",c:'"מה גילך? "'},{t:"tok-punc",c:")"},{t:"",c:"\n"},
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"("},{t:"tok-var",c:"age"},{t:"tok-punc",c:" + "},{t:"tok-num",c:"1"},{t:"tok-punc",c:")"},
+  ],
+  outLabel:"שגיאה:", outText:"TypeError: can only concatenate str (not \"int\") to str" },
+
+{ type:"content", eyebrow:"הפתרון", title:"<span class='accent'>int()</span> — המרת מחרוזת למספר שלם",
+  body:`
+  <p class="body-text">הפונקציה <code style="font-family:var(--font-mono)">int()</code> לוקחת ערך (למשל מחרוזת שמכילה ספרות) ומחזירה אותו כ<strong class="hl2">מספר שלם</strong> — עכשיו אפשר לבצע עליו חישובים.</p>` },
+
+{ type:"code", eyebrow:"דוגמה · מתוקן", title:"אותה תוכנית, הפעם <span class='accent'>עובדת</span>",
+  desc:"עוטפים את input() ב-int() כדי להמיר את התוצאה למספר:",
+  code:[
+    {t:"tok-var",c:"age"},{t:"tok-punc",c:" = "},{t:"tok-fn",c:"int"},{t:"tok-punc",c:"("},{t:"tok-fn",c:"input"},{t:"tok-punc",c:"("},{t:"tok-str",c:'"מה גילך? "'},{t:"tok-punc",c:")"},{t:"tok-punc",c:")"},{t:"",c:"\n"},
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"("},{t:"tok-str",c:'"בעוד שנה תהיה בן:"'},{t:"tok-punc",c:", "},{t:"tok-var",c:"age"},{t:"tok-punc",c:" + "},{t:"tok-num",c:"1"},{t:"tok-punc",c:")"},
+  ],
+  outLabel:"בזמן ריצה (המשתמש הקליד \"17\"):", outText:"מה גילך? 17\nבעוד שנה תהיה בן: 18" },
+
+{ type:"content", eyebrow:"מספרים עשרוניים", title:"<span class='accent'>float()</span> — המרה למספר עשרוני",
+  body:`
+  <p class="body-text">כשצריך גם ספרות אחרי הנקודה — למשל מחיר או משקל — משתמשים ב-<code style="font-family:var(--font-mono)">float()</code> במקום <code style="font-family:var(--font-mono)">int()</code>.</p>
+  <div class="grid cols-2">
+    <div class="card blue"><h3 style="font-family:var(--font-mono)">int("17")</h3><p><strong>17</strong> — מספר שלם</p></div>
+    <div class="card gold"><h3 style="font-family:var(--font-mono)">float("17.5")</h3><p><strong>17.5</strong> — מספר עשרוני</p></div>
+  </div>` },
+
+{ type:"code", eyebrow:"דוגמה · float", title:"חישוב <span class='accent'>מחיר</span> עם מע\"מ",
+  desc:"מקבלים מחיר מהמשתמש כמספר עשרוני, ומוסיפים 17% מע\"מ:",
+  code:[
+    {t:"tok-var",c:"price"},{t:"tok-punc",c:" = "},{t:"tok-fn",c:"float"},{t:"tok-punc",c:"("},{t:"tok-fn",c:"input"},{t:"tok-punc",c:"("},{t:"tok-str",c:'"מחיר לפני מע\\"מ: "'},{t:"tok-punc",c:")"},{t:"tok-punc",c:")"},{t:"",c:"\n"},
+    {t:"tok-var",c:"final_price"},{t:"tok-punc",c:" = "},{t:"tok-var",c:"price"},{t:"tok-punc",c:" * "},{t:"tok-num",c:"1.17"},{t:"",c:"\n"},
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"("},{t:"tok-var",c:"final_price"},{t:"tok-punc",c:")"},
+  ],
+  outLabel:"בזמן ריצה (המשתמש הקליד \"100\"):", outText:"מחיר לפני מע\"מ: 100\n117.0" },
+
+{ type:"content", eyebrow:"שימו לב", title:"מה קורה כשה<span class='accent'>המרה</span> נכשלת?",
+  body:`
+  <p class="body-text">אם המשתמש מקליד משהו שהוא <strong class="hl2">לא</strong> מספר תקין — למשל מילה — <code style="font-family:var(--font-mono)">int()</code> ו-<code style="font-family:var(--font-mono)">float()</code> יזרקו שגיאה.</p>` },
+
+{ type:"code", eyebrow:"דוגמה · שגיאה", title:"קלט <span class='accent'>לא תקין</span>",
+  desc:"מה קורה אם המשתמש מקליד טקסט במקום מספר?",
+  code:[
+    {t:"tok-var",c:"age"},{t:"tok-punc",c:" = "},{t:"tok-fn",c:"int"},{t:"tok-punc",c:"("},{t:"tok-fn",c:"input"},{t:"tok-punc",c:"("},{t:"tok-str",c:'"מה גילך? "'},{t:"tok-punc",c:")"},{t:"tok-punc",c:")"},
+  ],
+  outLabel:"בזמן ריצה (המשתמש הקליד \"עשרים\"):", outText:"מה גילך? עשרים\nValueError: invalid literal for int() with base 10: 'עשרים'" },
+
+{ type:"content", eyebrow:"טיפ", title:"נתקלים ב<span class='accent'>ValueError</span>? זו הסיבה",
+  body:`
+  <div class="callout warn">
+    <svg class="icon" viewBox="0 0 24 24"><use href="#ic-warn"/></svg>
+    <p>כרגע נניח שהמשתמש תמיד מקליד קלט תקין. כשנלמד תנאים ביחידה 6, נראה איך <strong>בודקים</strong> קלט לפני שממירים אותו — כדי למנוע קריסה של התוכנית.</p>
+  </div>` },
+
+{ type:"exercises", eyebrow:"תרגול · המרות", title:"תרגלו <span class='accent'>int() ו-float()</span>",
+  desc:"תרגילים שמשלבים קלט והמרה:",
+  items:[
+    {tag:"easy", text:"בקשו מהמשתמש שני מספרים שלמים בעזרת <code>input()</code> ו-<code>int()</code>, והדפיסו את הסכום שלהם."},
+    {tag:"easy", text:"בקשו מהמשתמש את משקלו וגובהו (כ-float), וחשבו את מדד מסת הגוף (BMI): <code>weight / (height * height)</code>."},
+    {tag:"med", text:"בקשו מהמשתמש כמה שעות עבד וכמה עולה שעת עבודה (float), וחשבו את סך השכר. הדפיסו את התוצאה עם תווית ברורה."},
+  ]},
+
+{ type:"content", eyebrow:"כיוון הפוך", title:"<span class='accent'>str()</span> — המרת מספר למחרוזת",
+  body:`
+  <p class="body-text">לפעמים צריך את הכיוון ההפוך: <strong class="hl2">מספר</strong> שרוצים "לחבר" לתוך משפט טקסט. כדי לחבר מחרוזת למספר עם <code style="font-family:var(--font-mono)">+</code>, קודם צריך להפוך את המספר למחרוזת בעזרת <code style="font-family:var(--font-mono)">str()</code>.</p>` },
+
+{ type:"code", eyebrow:"דוגמה · שגיאה", title:"לא ניתן <span class='accent'>לחבר</span> str ל-int",
+  desc:"מה קורה אם מנסים לחבר מחרוזת למספר ישירות?",
+  code:[
+    {t:"tok-var",c:"score"},{t:"tok-punc",c:" = "},{t:"tok-num",c:"95"},{t:"",c:"\n"},
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"("},{t:"tok-str",c:'"הציון שלך: "'},{t:"tok-punc",c:" + "},{t:"tok-var",c:"score"},{t:"tok-punc",c:")"},
+  ],
+  outLabel:"שגיאה:", outText:"TypeError: can only concatenate str (not \"int\") to str" },
+
+{ type:"code", eyebrow:"דוגמה · מתוקן", title:"עוטפים ב-<span class='accent'>str()</span>",
+  desc:"עכשיו זה עובד, כי הפכנו את המספר למחרוזת קודם:",
+  code:[
+    {t:"tok-var",c:"score"},{t:"tok-punc",c:" = "},{t:"tok-num",c:"95"},{t:"",c:"\n"},
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"("},{t:"tok-str",c:'"הציון שלך: "'},{t:"tok-punc",c:" + "},{t:"tok-fn",c:"str"},{t:"tok-punc",c:"("},{t:"tok-var",c:"score"},{t:"tok-punc",c:")"},{t:"tok-punc",c:")"},
+  ],
+  outLabel:"פלט:", outText:"הציון שלך: 95" },
+
+{ type:"content", eyebrow:"טיפ שימושי", title:"אפשר גם <span class='accent'>בלי</span> str()",
+  body:`
+  <p class="body-text">כשמשתמשים ב-<code style="font-family:var(--font-mono)">print()</code> עם כמה ערכים מופרדים בפסיק (כמו שראינו ביחידה 1), <strong class="hl2">לא צריך str()</strong> — הפסיק דואג לצרף את הערכים בשבילנו, בלי קשר לטיפוס שלהם.</p>
+  <div class="grid cols-2">
+    <div class="card coral"><h3 style="font-family:var(--font-mono);font-size:13.5px">"ציון: " + score</h3><p>שגיאה — חייבים <code>str(score)</code></p></div>
+    <div class="card green"><h3 style="font-family:var(--font-mono);font-size:13.5px">print("ציון:", score)</h3><p>עובד ישר — הפסיק לא דורש str()</p></div>
+  </div>` },
+
+{ type:"exercises", eyebrow:"תרגול · str()", title:"תרגלו <span class='accent'>המרות</span> בכיוון ההפוך",
+  desc:"תרגילים שמשלבים str() וחיבור מחרוזות:",
+  items:[
+    {tag:"easy", text:"צרו משתנה <code>temperature = 24</code>, והדפיסו משפט מלא כמו \"הטמפרטורה היום היא 24 מעלות\" בעזרת חיבור מחרוזות (<code>+</code>) ו-<code>str()</code>."},
+    {tag:"med", text:"בקשו מהמשתמש שם ומספר ספר שקרא, וחברו משפט מלא בעזרת <code>+</code> — שימו לב אילו ערכים דורשים <code>str()</code> ואילו לא."},
+  ]},
+
+{ type:"content", eyebrow:"נושא חדש", title:"מחרוזת היא <span class='accent'>רצף</span> של תווים",
+  body:`
+  <p class="body-text">מחרוזת (<code style="font-family:var(--font-mono)">str</code>) היא בעצם <strong class="hl2">רצף מסודר של תווים</strong> — אותיות, ספרות, רווחים וסימנים — ולכן יש עליה כמה פעולות שימושיות שלא קיימות על מספרים.</p>` },
+
+{ type:"content", eyebrow:"פעולה ראשונה", title:"<span class='accent'>+</span> ו-<span class='accent'>*</span> על מחרוזות",
+  body:`
+  <p class="body-text">האופרטורים <code style="font-family:var(--font-mono)">+</code> ו-<code style="font-family:var(--font-mono)">*</code> שהכרנו ביחידה 3 עובדים גם על מחרוזות — אבל <strong class="hl2">בצורה שונה לגמרי</strong> מאשר על מספרים.</p>
+  <div class="grid cols-2">
+    <div class="card blue"><h3 style="font-family:var(--font-mono)">"שלום" + " " + "עולם"</h3><p><strong>"שלום עולם"</strong> — הצמדה (concatenation), לא חיבור מתמטי</p></div>
+    <div class="card gold"><h3 style="font-family:var(--font-mono)">"אבג" * 3</h3><p><strong>"אבגאבגאבג"</strong> — חזרה על המחרוזת 3 פעמים</p></div>
+  </div>` },
+
+{ type:"code", eyebrow:"דוגמה", title:"הצמדה <span class='accent'>וחזרה</span>",
+  desc:"בונים שם מלא ממחרוזות נפרדות, וגם חוזרים על תו:",
+  code:[
+    {t:"tok-var",c:"first"},{t:"tok-punc",c:" = "},{t:"tok-str",c:'"רותם"'},{t:"",c:"\n"},
+    {t:"tok-var",c:"last"},{t:"tok-punc",c:" = "},{t:"tok-str",c:'"כהן"'},{t:"",c:"\n"},
+    {t:"tok-var",c:"full_name"},{t:"tok-punc",c:" = "},{t:"tok-var",c:"first"},{t:"tok-punc",c:" + "},{t:"tok-str",c:'" "'},{t:"tok-punc",c:" + "},{t:"tok-var",c:"last"},{t:"",c:"\n"},
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"("},{t:"tok-var",c:"full_name"},{t:"tok-punc",c:")"},{t:"",c:"\n"},
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"("},{t:"tok-str",c:'"-"'},{t:"tok-punc",c:" * "},{t:"tok-num",c:"10"},{t:"tok-punc",c:")"},
+  ],
+  outLabel:"פלט:", outText:"רותם כהן\n----------" },
+
+{ type:"content", eyebrow:"פעולה שנייה", title:"<span class='accent'>len()</span> — אורך מחרוזת",
+  body:`
+  <p class="body-text">הפונקציה <code style="font-family:var(--font-mono)">len()</code> מחזירה כמה תווים יש במחרוזת — כולל רווחים.</p>
+  <div class="grid cols-2">
+    <div class="card violet"><h3 style="font-family:var(--font-mono)">len("Python")</h3><p><strong>6</strong> — שישה תווים</p></div>
+    <div class="card violet"><h3 style="font-family:var(--font-mono)">len("שלום עולם")</h3><p><strong>9</strong> — כולל הרווח באמצע</p></div>
+  </div>` },
+
+{ type:"code", eyebrow:"דוגמה · len()", title:"בדיקת <span class='accent'>אורך</span> סיסמה",
+  desc:"מקבלים סיסמה מהמשתמש, ובודקים כמה תווים בה:",
+  code:[
+    {t:"tok-var",c:"password"},{t:"tok-punc",c:" = "},{t:"tok-fn",c:"input"},{t:"tok-punc",c:"("},{t:"tok-str",c:'"בחרו סיסמה: "'},{t:"tok-punc",c:")"},{t:"",c:"\n"},
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"("},{t:"tok-str",c:'"אורך הסיסמה:"'},{t:"tok-punc",c:", "},{t:"tok-fn",c:"len"},{t:"tok-punc",c:"("},{t:"tok-var",c:"password"},{t:"tok-punc",c:")"},{t:"tok-punc",c:")"},
+  ],
+  outLabel:"בזמן ריצה (המשתמש הקליד \"py2026\"):", outText:"בחרו סיסמה: py2026\nאורך הסיסמה: 7" },
+
+{ type:"exercises", eyebrow:"תרגול · + * len()", title:"תרגלו <span class='accent'>פעולות</span> על מחרוזות",
+  desc:"תרגילים על הצמדה, חזרה ואורך:",
+  items:[
+    {tag:"easy", text:"בקשו מהמשתמש שם פרטי ושם משפחה בנפרד, וחברו אותם למחרוזת אחת עם רווח באמצע."},
+    {tag:"easy", text:"בקשו מהמשתמש מילה, והדפיסו כמה תווים יש בה בעזרת <code>len()</code>."},
+    {tag:"med", text:"הדפיסו קו מפריד באורך 20 מקפים בעזרת <code>\"-\" * 20</code>, ומתחתיו הדפיסו כותרת בעזרת <code>print()</code>."},
+  ]},
+
+{ type:"content", eyebrow:"פעולה שלישית", title:"<span class='accent'>אינדוקס</span> — תו בודד מתוך מחרוזת",
+  body:`
+  <p class="body-text">אפשר לגשת לתו בודד במחרוזת לפי <strong class="hl2">מיקומו</strong> (אינדקס), באמצעות סוגריים מרובעים. חשוב לזכור: <strong class="hl">הספירה מתחילה מ-0</strong>, לא מ-1!</p>
+  <div class="grid cols-2">
+    <div class="card blue"><h3 style="font-family:var(--font-mono)">"Python"[0]</h3><p><strong>"P"</strong> — התו הראשון, באינדקס 0</p></div>
+    <div class="card gold"><h3 style="font-family:var(--font-mono)">"Python"[-1]</h3><p><strong>"n"</strong> — אינדקס שלילי סופר מהסוף</p></div>
+  </div>` },
+
+{ type:"code", eyebrow:"דוגמה · אינדוקס", title:"הגישה <span class='accent'>לתו הראשון</span> בשם",
+  desc:"מדפיסים רק את האות הראשונה של שם שהוקלד:",
+  code:[
+    {t:"tok-var",c:"name"},{t:"tok-punc",c:" = "},{t:"tok-fn",c:"input"},{t:"tok-punc",c:"("},{t:"tok-str",c:'"מה שמך? "'},{t:"tok-punc",c:")"},{t:"",c:"\n"},
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"("},{t:"tok-str",c:'"האות הראשונה בשמך:"'},{t:"tok-punc",c:", "},{t:"tok-var",c:"name"},{t:"tok-punc",c:"["},{t:"tok-num",c:"0"},{t:"tok-punc",c:"]"},{t:"tok-punc",c:")"},
+  ],
+  outLabel:"בזמן ריצה (המשתמש הקליד \"תום\"):", outText:"מה שמך? תום\nהאות הראשונה בשמך: ת" },
+
+{ type:"content", eyebrow:"שימו לב", title:"אינדקס <span class='accent'>מחוץ לתחום</span> = שגיאה",
+  body:`
+  <div class="callout warn">
+    <svg class="icon" viewBox="0 0 24 24"><use href="#ic-warn"/></svg>
+    <p>אם מנסים לגשת לאינדקס שלא קיים במחרוזת — למשל <code style="font-family:var(--font-mono)">"hi"[5]</code> — Python תזרוק <code style="font-family:var(--font-mono)">IndexError</code>. נלמד איך למנוע זאת כשנכיר תנאים ולולאות.</p>
+  </div>
+  <div class="callout tip" style="margin-top:16px">
+    <svg class="icon" viewBox="0 0 24 24"><use href="#ic-bulb"/></svg>
+    <p>אינדוקס וחיתוך מחרוזות מתקדם יותר (slicing) נרחיב עליהם כשנלמד רשימות ביחידה 9 — הרעיון של אינדקס מתחיל מ-0 זהה לגמרי.</p>
+  </div>` },
+
+{ type:"exercises", eyebrow:"תרגול · חלק א׳", title:"משימות — <span class='accent'>רמה קלה</span>",
+  desc:"שילוב בסיסי של קלט, המרה ומחרוזות.",
+  items:[
+    {tag:"easy", text:"בקשו מהמשתמש שני מספרים שלמים, חשבו את הסכום וההפרש שלהם, והדפיסו את שניהם עם תוויות."},
+    {tag:"easy", text:"בקשו מהמשתמש את שם עירו, והדפיסו משפט כמו \"אני גר/ה ב-<שם העיר>\" בעזרת הצמדת מחרוזות."},
+    {tag:"easy", text:"בקשו מהמשתמש מילה, והדפיסו את האות הראשונה ואת האות האחרונה שלה (בעזרת אינדקס 0 ו--1)."},
+  ]},
+
+{ type:"exercises", eyebrow:"תרגול · חלק ב׳", title:"משימות — <span class='accent'>רמה בינונית</span>",
+  desc:"כאן נדרש שילוב של המרות עם חישוב.",
+  items:[
+    {tag:"med", text:"בקשו מהמשתמש שנת לידה (מספר שלם), וחשבו את גילו הצפוי בשנת 2026 (<code>2026 - birth_year</code>), הדפיסו משפט מלא."},
+    {tag:"med", text:"בקשו מהמשתמש שני מספרים עשרוניים (float), חשבו את הממוצע שלהם, והדפיסו משפט שמשלב טקסט ומספר בעזרת <code>str()</code>."},
+    {tag:"med", text:"בקשו מהמשתמש מילה, והדפיסו אותה כשהיא חוזרת על עצמה 3 פעמים ברצף, בלי רווחים ביניהן (בעזרת <code>*</code>)."},
+    {tag:"med", text:"בקשו מהמשתמש את שמו הפרטי, וחשבו כמה תווים יש בו בעזרת <code>len()</code> — הדפיסו משפט שאומר \"בשמך יש X אותיות\"."},
+  ]},
+
+{ type:"exercises", eyebrow:"תרגול · חלק ג׳", title:"משימות — <span class='accent'>רמה מאתגרת</span>",
+  desc:"תרגילים מסכמים שמשלבים את כל נושאי היחידה.",
+  items:[
+    {tag:"hard", text:"בנו \"כרטיס פרופיל\" קטן: בקשו מהמשתמש שם, גיל (int) וגובה במטרים (float), והדפיסו כרטיס מסודר עם כל הפרטים, כולל שורת מקפים כמסגרת (בעזרת <code>\"-\" * 20</code>)."},
+    {tag:"hard", text:"איתור באג: התוכנית <code style=\"display:block;margin-top:6px;white-space:pre\">age = input(\"גיל: \")\nprint(\"בעוד עשר שנים תהיה בן \" + age + 10)</code> קורסת. מצאו את הבעיה, תקנו אותה, והסבירו למה השגיאה קרתה."},
+    {tag:"hard", text:"בקשו מהמשתמש שני שמות פרטיים, ובנו מהם \"שם משתמש\" (username) שמורכב מהאות הראשונה של השם הראשון ומכל השם השני, הדפיסו את התוצאה — למשל \"נועה\" ו-\"לוי\" ייתן <code>נלוי</code>."},
+  ]},
+
+{ type:"exercises", eyebrow:"בדיקה עצמית", title:"שאלות <span class='accent'>חזרה</span> מהירות",
+  desc:"בלי לגלול אחורה — כמה מהן אתם זוכרים?",
+  items:[
+    {tag:"easy", text:"מה מחזירה הפונקציה <code>input()</code> תמיד, גם אם המשתמש הקליד מספר?"},
+    {tag:"easy", text:"מה ההבדל בין <code>int()</code> ל-<code>float()</code>?"},
+    {tag:"med", text:"למה צריך <code>str()</code> כדי לחבר מספר למחרוזת עם <code>+</code>, אבל לא כדי להדפיס אותם יחד עם פסיק ב-<code>print()</code>?"},
+    {tag:"med", text:"מה מחזיר <code>\"abc\" * 2</code>? ומה מחזיר <code>\"abc\"[0]</code>?"},
+    {tag:"med", text:"מהו אינדקס -1 במחרוזת?"},
+  ]},
+
+{ type:"content", eyebrow:"לפני שסוגרים", title:"חמישה דברים <span class='accent'>לזכור</span> מהיום",
+  body:`
+  <div class="grid cols-3">
+    <div class="card blue"><h3 style="font-family:var(--font-mono)">input()</h3><p>מקבלת קלט מהמשתמש, ותמיד מחזירה מחרוזת</p></div>
+    <div class="card gold"><h3 style="font-family:var(--font-mono)">int() / float()</h3><p>ממירים מחרוזת למספר, כדי לבצע חישובים</p></div>
+    <div class="card violet"><h3 style="font-family:var(--font-mono)">str()</h3><p>ממיר מספר למחרוזת, כדי לחבר אותו עם <code>+</code></p></div>
+    <div class="card green"><h3 style="font-family:var(--font-mono)">+ *</h3><p>על מחרוזות: הצמדה וחזרה, לא חשבון</p></div>
+    <div class="card coral"><h3 style="font-family:var(--font-mono)">len() / [i]</h3><p>אורך מחרוזת, וגישה לתו לפי אינדקס (מ-0)</p></div>
+  </div>` },
+
+{ type:"title", kicker:"סיכום יחידה 5", title:'התוכניות שלכם עכשיו <span class="py-mark">מדברות</span> <span class="py-mark2">ומקשיבות</span>',
+  sub:"בשיעור הבא: ביטויים בוליאניים ותנאים (IF) — נלמד לגרום לתוכנית לקבל החלטות בעצמה.",
+  prompt:'>>> if age >= 18: <span class="caret"></span>' },
+];
+
+
+/* ============================================================
+   RENDER ENGINE — shared across all decks in this course.
+   Reads the SLIDES data array above and builds the DOM.
+   ============================================================ */
+function esc(s){ return String(s); } // content is authored HTML on purpose (icons, spans)
+
+function renderCode(tokens){
+  return tokens.map(tk => tk.t ? `<span class="${tk.t}">${tk.c}</span>` : tk.c).join("");
+}
+
+function buildSlide(s, i){
+  const el = document.createElement("section");
+  el.className = "slide";
+  el.dataset.index = i;
+
+  if(s.type === "title"){
+    el.classList.add("title-slide");
+    el.innerHTML = `
+      <div class="kicker">${s.kicker}</div>
+      <h1>${s.title}</h1>
+      <p>${s.sub}</p>
+      <div class="prompt-line">${s.prompt}</div>
+    `;
+  } else if(s.type === "content"){
+    el.innerHTML = `
+      <div class="eyebrow"><span class="dot"></span>${s.eyebrow}</div>
+      <h1 class="slide-title">${s.title}</h1>
+      ${s.body}
+    `;
+  } else if(s.type === "code"){
+    el.innerHTML = `
+      <div class="eyebrow"><span class="dot"></span>${s.eyebrow}</div>
+      <h1 class="slide-title">${s.title}</h1>
+      ${s.desc ? `<p class="body-text" style="margin-bottom:16px">${s.desc}</p>` : ""}
+      <div class="codewrap">
+        <div class="chead"><b>&gt;_</b> example.py</div>
+        <pre class="code">${renderCode(s.code)}</pre>
+      </div>
+      ${s.outText ? `
+      <div class="outwrap" style="margin-top:14px">
+        <div class="ohead">${s.outLabel || "פלט:"}</div>
+        <div class="obody">${s.outText}</div>
+      </div>` : ""}
+    `;
+  } else if(s.type === "exercises"){
+    el.innerHTML = `
+      <div class="eyebrow"><span class="dot"></span>${s.eyebrow}</div>
+      <h1 class="slide-title">${s.title}</h1>
+      ${s.desc ? `<p class="body-text" style="margin-bottom:6px">${s.desc}</p>` : ""}
+      <ul class="exlist">
+        ${s.items.map((it, idx) => `
+          <li>
+            <span class="tag ${it.tag}">${it.tag === "easy" ? "קל" : it.tag === "med" ? "בינוני" : "מאתגר"}</span>
+            <span class="exbody">${it.text}</span>
+            <span class="exnum">${idx+1}</span>
+          </li>
+        `).join("")}
+      </ul>
+    `;
+  }
+  return el;
+}
+
+(function initDeck(){
+  const viewport = document.getElementById("viewport");
+  const dotsNav = document.getElementById("dotsNav");
+  const fill = document.getElementById("progressFill");
+  const pgCur = document.getElementById("pg-cur");
+  const pgTotal = document.getElementById("pg-total");
+  const tbName = document.getElementById("tb-name");
+  if(tbName) tbName.textContent = (typeof FILE_NAME !== "undefined" ? FILE_NAME : "deck.py");
+
+  let cur = 0;
+  const n = SLIDES.length;
+  pgTotal.textContent = n;
+
+  SLIDES.forEach((s, i) => {
+    viewport.appendChild(buildSlide(s, i));
+    const dot = document.createElement("button");
+    dot.setAttribute("aria-label", "שקופית " + (i+1));
+    dot.addEventListener("click", () => go(i));
+    dotsNav.appendChild(dot);
+  });
+  const slideEls = Array.from(viewport.children);
+  const dotEls = Array.from(dotsNav.children);
+
+  function go(i){
+    cur = Math.max(0, Math.min(n-1, i));
+    slideEls.forEach((el, idx) => el.classList.toggle("active", idx === cur));
+    dotEls.forEach((el, idx) => el.classList.toggle("on", idx === cur));
+    fill.style.width = (n <= 1 ? 100 : (cur/(n-1))*100) + "%";
+    pgCur.textContent = cur + 1;
+  }
+  go(0);
+
+  document.getElementById("btnNext").addEventListener("click", () => go(cur+1));
+  document.getElementById("btnPrev").addEventListener("click", () => go(cur-1));
+  document.getElementById("btnFs").addEventListener("click", () => {
+    if(!document.fullscreenElement){ document.documentElement.requestFullscreen().catch(()=>{}); }
+    else { document.exitFullscreen().catch(()=>{}); }
+  });
+
+  window.addEventListener("keydown", (e) => {
+    if(["ArrowRight","PageDown"," ","Spacebar"].includes(e.key)){ go(cur+1); e.preventDefault(); }
+    else if(["ArrowLeft","PageUp"].includes(e.key)){ go(cur-1); e.preventDefault(); }
+    else if(e.key === "Home"){ go(0); e.preventDefault(); }
+    else if(e.key === "End"){ go(n-1); e.preventDefault(); }
+    else if(e.key === "f" || e.key === "F"){ document.getElementById("btnFs").click(); }
+  });
+
+  let touchX = null;
+  viewport.addEventListener("touchstart", (e) => { touchX = e.touches[0].clientX; }, {passive:true});
+  viewport.addEventListener("touchend", (e) => {
+    if(touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if(Math.abs(dx) > 50){ go(dx < 0 ? cur+1 : cur-1); }
+    touchX = null;
+  }, {passive:true});
+})();
+</script>

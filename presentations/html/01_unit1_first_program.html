@@ -1,0 +1,919 @@
+<title>יחידה 1 · מבוא לפייתון וכתיבת תכנית ראשונה</title>
+<style>
+/* ============================================================
+   DESIGN SYSTEM
+   Concept: the deck itself is staged as a code editor / terminal
+   window (title-bar dots, file tab) — grounded in the subject
+   (learning to code) rather than a generic slide template.
+   Committed single dark "editor" world by design (like a themed
+   terminal), the same way a themed arcade screen stays single-mode.
+   Font stack is an intentional native Hebrew system stack: the
+   Artifact sandbox blocks external font fetches, so rather than
+   link a webfont that silently falls back, we design directly
+   for the Hebrew system faces students' machines already have.
+   ============================================================ */
+:root{
+  --bg:            #0f1420;
+  --bg-panel:      #161c2c;
+  --bg-panel-2:    #1b2338;
+  --bg-titlebar:   #10151f;
+  --ink:           #e9edf6;
+  --ink-dim:       #939bb8;
+  --ink-faint:     #5c6485;
+  --line:          #2a3350;
+  --line-soft:     #212a44;
+
+  --blue:          #55c6f2;
+  --blue-dim:      #2d4a63;
+  --gold:          #ffd166;
+  --gold-dim:      #5a4a2c;
+  --coral:         #ff7a7a;
+  --coral-dim:     #5a2f34;
+  --green:         #6fe3b4;
+  --green-dim:     #204538;
+  --violet:        #bda2f2;
+  --violet-dim:    #3a2f57;
+
+  --font-display: "Rubik", "Segoe UI Variable Display", "Segoe UI", "Arial Hebrew", "Noto Sans Hebrew", "Heebo", "Arial", sans-serif;
+  --font-body:    "Assistant", "Segoe UI", "Arial Hebrew", "Noto Sans Hebrew", "Heebo", "Arial", sans-serif;
+  --font-mono:    "JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace, "SF Mono", Consolas, "Courier New", monospace;
+
+  --radius: 18px;
+  --shadow: 0 30px 80px -20px rgba(0,0,0,.65), 0 10px 30px -12px rgba(0,0,0,.5);
+}
+:root[data-theme="light"], :root[data-theme="dark"]{
+  /* Deliberately single-themed (see note above) — both branches keep the editor palette. */
+  --bg:#0f1420; --bg-panel:#161c2c; --bg-panel-2:#1b2338; --bg-titlebar:#10151f;
+  --ink:#e9edf6; --ink-dim:#939bb8; --ink-faint:#5c6485; --line:#2a3350; --line-soft:#212a44;
+}
+
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0;
+  background:
+    radial-gradient(1100px 620px at 12% -8%, #1a2440 0%, transparent 60%),
+    radial-gradient(900px 560px at 108% 8%, #1c1f3a 0%, transparent 55%),
+    var(--bg);
+  color:var(--ink);
+  font-family:var(--font-body);
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{ background:var(--blue); color:#0f1420; }
+
+/* ---------- stage & deck window ---------- */
+.stage{
+  position:fixed; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  padding:clamp(10px,3vh,34px) clamp(10px,3vw,34px);
+}
+.deck{
+  position:relative;
+  width:min(1180px, 96vw);
+  height:min(720px, 92vh);
+  background:linear-gradient(180deg, var(--bg-panel), var(--bg-panel-2));
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  display:flex; flex-direction:column;
+  overflow:hidden;
+}
+.titlebar{
+  display:flex; align-items:center; gap:14px;
+  padding:12px 18px;
+  background:var(--bg-titlebar);
+  border-bottom:1px solid var(--line);
+  direction:ltr; /* window chrome is a UI artifact, always LTR like a real editor */
+}
+.tb-dots{ display:flex; gap:7px; }
+.tb-dots span{ width:11px; height:11px; border-radius:50%; display:block; }
+.tb-dots span:nth-child(1){ background:#ff6159; }
+.tb-dots span:nth-child(2){ background:#ffbd2e; }
+.tb-dots span:nth-child(3){ background:#28c93f; }
+.tb-tab{
+  font-family:var(--font-mono);
+  font-size:12.5px;
+  color:var(--ink-dim);
+  background:var(--bg-panel);
+  border:1px solid var(--line);
+  border-bottom:none;
+  padding:5px 12px 6px;
+  border-radius:8px 8px 0 0;
+  margin-inline-start:6px;
+}
+.tb-tab b{ color:var(--gold); font-weight:600; }
+.tb-spacer{ flex:1; }
+.tb-progress-label{
+  font-family:var(--font-mono); font-size:12px; color:var(--ink-faint);
+  font-variant-numeric:tabular-nums;
+}
+
+.progress-track{ height:3px; background:var(--line-soft); position:relative; }
+.progress-fill{ position:absolute; inset-inline-start:0; top:0; bottom:0; width:0%;
+  background:linear-gradient(90deg, var(--blue), var(--green));
+  transition:width .35s ease; }
+
+/* ---------- slide viewport ---------- */
+.viewport{ position:relative; flex:1; overflow:hidden; }
+.slide{
+  position:absolute; inset:0;
+  display:flex; flex-direction:column;
+  padding:clamp(26px,4.4vh,52px) clamp(34px,6vw,76px);
+  opacity:0; transform:translateY(14px) scale(.99);
+  pointer-events:none;
+  transition:opacity .38s ease, transform .38s ease;
+  overflow-y:auto;
+  direction:rtl;
+}
+.slide.active{ opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
+@media (prefers-reduced-motion: reduce){
+  .slide{ transition:opacity .01s linear; transform:none; }
+}
+
+.eyebrow{
+  font-family:var(--font-mono); font-size:13px; letter-spacing:.02em;
+  color:var(--blue); display:flex; align-items:center; gap:8px; margin-bottom:14px;
+  direction:ltr; justify-content:flex-end;
+}
+.eyebrow .dot{ width:6px; height:6px; border-radius:50%; background:var(--blue); }
+
+h1.slide-title{
+  font-family:var(--font-display); font-weight:700;
+  font-size:clamp(28px,4.4vh,44px); line-height:1.15; margin:0 0 .4em;
+  text-wrap:balance; color:var(--ink);
+}
+h1.slide-title .accent{ color:var(--gold); }
+h2.slide-sub{
+  font-family:var(--font-body); font-weight:500; color:var(--ink-dim);
+  font-size:clamp(15px,2.2vh,19px); margin:0 0 1.1em; line-height:1.6; max-width:62ch;
+}
+
+.body-text{ font-size:clamp(15px,2.1vh,18px); line-height:1.75; color:var(--ink); max-width:70ch; }
+.body-text + .body-text{ margin-top:.8em; }
+
+/* ---------- title slide ---------- */
+.slide.title-slide{ align-items:center; justify-content:center; text-align:center; }
+.title-slide .kicker{
+  font-family:var(--font-mono); color:var(--green); font-size:14px;
+  border:1px solid var(--green-dim); background:rgba(111,227,180,.08);
+  padding:6px 16px; border-radius:999px; margin-bottom:26px; direction:ltr;
+}
+.title-slide h1{
+  font-family:var(--font-display); font-weight:800;
+  font-size:clamp(38px,7vh,68px); line-height:1.08; margin:0 0 .3em; text-wrap:balance;
+}
+.title-slide .py-mark{ color:var(--blue); }
+.title-slide .py-mark2{ color:var(--gold); }
+.title-slide p{ color:var(--ink-dim); font-size:clamp(16px,2.4vh,21px); max-width:56ch; margin:0 auto; line-height:1.6; }
+.prompt-line{
+  margin-top:36px; font-family:var(--font-mono); color:var(--ink-faint); font-size:15px; direction:ltr;
+}
+.prompt-line .caret{ display:inline-block; width:9px; height:1.1em; background:var(--green); margin-inline-start:4px; vertical-align:-2px;
+  animation:blink 1.1s steps(1) infinite; }
+@keyframes blink{ 50%{ opacity:0; } }
+@media (prefers-reduced-motion: reduce){ .prompt-line .caret{ animation:none; } }
+
+/* ---------- icon grid (industries etc.) ---------- */
+.grid{ display:grid; gap:16px; margin-top:8px; }
+.grid.cols-4{ grid-template-columns:repeat(4,1fr); }
+.grid.cols-3{ grid-template-columns:repeat(3,1fr); }
+.grid.cols-2{ grid-template-columns:repeat(2,1fr); }
+.card{
+  background:var(--bg-titlebar); border:1px solid var(--line); border-radius:14px;
+  padding:16px 16px 15px; display:flex; flex-direction:column; gap:8px;
+}
+.card .icon{ width:34px; height:34px; }
+.card h3{ margin:2px 0 0; font-family:var(--font-display); font-size:15.5px; font-weight:700; color:var(--ink); }
+.card p{ margin:0; font-size:13.5px; line-height:1.55; color:var(--ink-dim); }
+.card.blue .icon{ color:var(--blue); } .card.blue{ border-color:var(--blue-dim); }
+.card.gold .icon{ color:var(--gold); } .card.gold{ border-color:var(--gold-dim); }
+.card.coral .icon{ color:var(--coral); } .card.coral{ border-color:var(--coral-dim); }
+.card.green .icon{ color:var(--green); } .card.green{ border-color:var(--green-dim); }
+.card.violet .icon{ color:var(--violet); } .card.violet{ border-color:var(--violet-dim); }
+
+/* ---------- badge chips (companies, tags) ---------- */
+.chiprow{ display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; direction:rtl; }
+.chip{
+  font-family:var(--font-mono); font-size:13.5px; color:var(--ink);
+  background:var(--bg-titlebar); border:1px solid var(--line);
+  padding:7px 14px; border-radius:999px; direction:ltr;
+}
+
+/* ---------- two-col layout ---------- */
+.split{ display:grid; grid-template-columns:1.1fr .9fr; gap:34px; align-items:center; flex:1; }
+.split .art{ display:flex; align-items:center; justify-content:center; }
+
+/* ---------- code block ---------- */
+.codewrap{
+  background:#0c1019; border:1px solid var(--line); border-radius:12px; overflow:hidden;
+  direction:ltr; text-align:left;
+}
+.codewrap .chead{
+  display:flex; align-items:center; gap:8px; padding:8px 12px; background:var(--bg-titlebar);
+  border-bottom:1px solid var(--line); font-family:var(--font-mono); font-size:11.5px; color:var(--ink-faint);
+}
+.codewrap .chead b{ color:var(--green); font-weight:600; }
+pre.code{
+  margin:0; padding:16px 18px; font-family:var(--font-mono); font-size:14.5px; line-height:1.7;
+  overflow-x:auto; direction:ltr; text-align:left; white-space:pre;
+}
+.tok-kw{ color:var(--violet); font-weight:600; }
+.tok-str{ color:var(--gold); }
+.tok-num{ color:var(--coral); }
+.tok-com{ color:var(--ink-faint); font-style:italic; }
+.tok-fn{ color:var(--blue); }
+.tok-var{ color:#9fd3ff; }
+.tok-punc{ color:var(--ink-dim); }
+
+.outwrap{ background:#0a0d14; border:1px solid var(--line); border-radius:12px; overflow:hidden; direction:ltr; text-align:left; }
+.outwrap .ohead{ padding:8px 12px; background:var(--bg-titlebar); border-bottom:1px solid var(--line);
+  font-family:var(--font-mono); font-size:11.5px; color:var(--ink-faint); }
+.outwrap .obody{ padding:14px 18px; font-family:var(--font-mono); font-size:14.5px; color:var(--green); white-space:pre-wrap; line-height:1.7; }
+
+/* ---------- exercise list ---------- */
+.exlist{ list-style:none; margin:10px 0 0; padding:0; display:flex; flex-direction:column; gap:12px; }
+.exlist li{
+  display:flex; gap:14px; align-items:flex-start;
+  background:var(--bg-titlebar); border:1px solid var(--line); border-radius:12px; padding:13px 16px;
+}
+.exnum{
+  flex:none; width:26px; height:26px; border-radius:8px; background:var(--bg-panel-2);
+  border:1px solid var(--line); display:flex; align-items:center; justify-content:center;
+  font-family:var(--font-mono); font-size:13px; color:var(--ink-dim); font-variant-numeric:tabular-nums;
+}
+.exbody{ flex:1; font-size:15px; line-height:1.6; }
+.exbody code{ font-family:var(--font-mono); background:var(--bg-panel-2); padding:1px 6px; border-radius:5px; color:var(--gold); direction:ltr; unicode-bidi:isolate; display:inline-block; }
+.tag{
+  flex:none; font-family:var(--font-mono); font-size:11px; padding:3px 9px; border-radius:999px;
+  height:fit-content; direction:ltr;
+}
+.tag.easy{ background:var(--green-dim); color:var(--green); }
+.tag.med{ background:var(--gold-dim); color:var(--gold); }
+.tag.hard{ background:var(--coral-dim); color:var(--coral); }
+
+/* ---------- callouts ---------- */
+.callout{ display:flex; gap:12px; align-items:flex-start; padding:14px 16px; border-radius:12px; margin-top:14px; }
+.callout .icon{ width:22px; height:22px; flex:none; margin-top:2px; }
+.callout p{ margin:0; font-size:14.5px; line-height:1.6; }
+.callout.warn{ background:rgba(255,122,122,.08); border:1px solid var(--coral-dim); }
+.callout.warn .icon{ color:var(--coral); }
+.callout.tip{ background:rgba(111,227,180,.08); border:1px solid var(--green-dim); }
+.callout.tip .icon{ color:var(--green); }
+
+ul.plain, ol.plain{ margin:10px 0 0; padding-inline-start:1.3em; display:flex; flex-direction:column; gap:9px; }
+ul.plain li, ol.plain li{ font-size:15.5px; line-height:1.65; }
+ul.plain li::marker{ color:var(--blue); }
+strong.hl{ color:var(--gold); font-weight:700; }
+strong.hl2{ color:var(--blue); font-weight:700; }
+
+/* ---------- roadmap timeline ---------- */
+.roadmap{ display:flex; flex-direction:column; gap:10px; margin-top:10px; }
+.rgroup{ display:flex; gap:14px; align-items:stretch; }
+.rgroup .rlabel{
+  flex:none; width:118px; display:flex; align-items:center; justify-content:center; text-align:center;
+  font-family:var(--font-display); font-weight:700; font-size:13.5px; border-radius:10px; padding:10px 6px;
+}
+.rgroup .ritems{ flex:1; display:flex; flex-wrap:wrap; gap:8px; align-content:center; }
+.rchip{ background:var(--bg-titlebar); border:1px solid var(--line); border-radius:8px; padding:7px 12px; font-size:13px; color:var(--ink-dim); }
+.rgroup.p1 .rlabel{ background:var(--blue-dim); color:var(--blue); }
+.rgroup.p2 .rlabel{ background:var(--gold-dim); color:var(--gold); }
+.rgroup.p3 .rlabel{ background:var(--violet-dim); color:var(--violet); }
+.rgroup.p4 .rlabel{ background:var(--green-dim); color:var(--green); }
+
+/* ---------- controls ---------- */
+.controls{
+  position:absolute; bottom:16px; inset-inline-end:16px; display:flex; gap:8px; z-index:5;
+  direction:ltr;
+}
+.ctrl-btn{
+  width:40px; height:40px; border-radius:10px; border:1px solid var(--line);
+  background:var(--bg-titlebar); color:var(--ink-dim); display:flex; align-items:center; justify-content:center;
+  cursor:pointer; transition:background .15s, color .15s, border-color .15s;
+}
+.ctrl-btn:hover{ background:var(--bg-panel-2); color:var(--ink); border-color:var(--blue-dim); }
+.ctrl-btn:focus-visible{ outline:2px solid var(--blue); outline-offset:2px; }
+.ctrl-btn svg{ width:18px; height:18px; }
+
+.dots-nav{ position:absolute; bottom:20px; inset-inline-start:20px; display:flex; gap:6px; z-index:5; direction:ltr; }
+.dots-nav button{
+  width:7px; height:7px; border-radius:50%; border:none; background:var(--line); cursor:pointer; padding:0;
+}
+.dots-nav button.on{ background:var(--blue); width:20px; border-radius:4px; }
+
+.hint{ position:absolute; bottom:18px; left:50%; transform:translateX(-50%); font-family:var(--font-mono);
+  font-size:11.5px; color:var(--ink-faint); z-index:4; }
+
+@media (max-width:760px){
+  .split{ grid-template-columns:1fr; }
+  .grid.cols-4{ grid-template-columns:repeat(2,1fr); }
+  .grid.cols-3{ grid-template-columns:repeat(2,1fr); }
+}
+</style>
+
+<div class="stage">
+  <div class="deck" id="deck">
+    <div class="titlebar">
+      <div class="tb-dots"><span></span><span></span><span></span></div>
+      <div class="tb-tab"><b>py</b>_course — <span id="tb-name">00_intro.py</span></div>
+      <div class="tb-spacer"></div>
+      <div class="tb-progress-label"><span id="pg-cur">1</span> / <span id="pg-total">1</span></div>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="viewport" id="viewport"></div>
+    <div class="dots-nav" id="dotsNav"></div>
+    <div class="controls">
+      <button class="ctrl-btn" id="btnFs" title="מסך מלא" aria-label="מסך מלא">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4M20 15v4a1 1 0 0 1-1 1h-4"/></svg>
+      </button>
+      <button class="ctrl-btn" id="btnPrev" title="הקודם" aria-label="הקודם">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <button class="ctrl-btn" id="btnNext" title="הבא" aria-label="הבא">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<svg width="0" height="0" style="position:absolute">
+<defs>
+<symbol id="ic-brain" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M9 4a3 3 0 0 0-3 3v.3A3 3 0 0 0 4 10v1a3 3 0 0 0 1 2.2V15a3 3 0 0 0 3 3h1v2M9 4a3 3 0 0 1 3 3v13M9 4h1M4 10h2M4.2 13.5H7"/>
+  <path d="M15 4a3 3 0 0 1 3 3v.3a3 3 0 0 1 2 2.7v1a3 3 0 0 1-1 2.2V15a3 3 0 0 1-3 3h-1"/>
+  <path d="M15 4a3 3 0 0 0-3 3M18 10h2M19.8 13.5H17"/>
+</symbol>
+<symbol id="ic-terminal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/>
+</symbol>
+<symbol id="ic-cpu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9" y="9" width="6" height="6" rx="1"/>
+  <path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/>
+</symbol>
+<symbol id="ic-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.7 2.6 4 5.7 4 9s-1.3 6.4-4 9c-2.7-2.6-4-5.7-4-9s1.3-6.4 4-9Z"/>
+</symbol>
+<symbol id="ic-robot" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="5" y="9" width="14" height="10" rx="2"/><circle cx="9.5" cy="14" r="1.2" fill="currentColor" stroke="none"/><circle cx="14.5" cy="14" r="1.2" fill="currentColor" stroke="none"/>
+  <path d="M12 9V6M9 6h6M4 13H2M22 13h-2"/>
+</symbol>
+<symbol id="ic-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M4 20V10M10 20V4M16 20v-7M4 20h16"/>
+</symbol>
+<symbol id="ic-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12 3l7 3v6c0 4.5-3 7.7-7 9-4-1.3-7-4.5-7-9V6l7-3Z"/><path d="M9 12l2 2 4-4"/>
+</symbol>
+<symbol id="ic-network" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="4.5" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/>
+  <path d="M12 6.5v4M12 10.5 6 16M12 10.5l6 5.5"/>
+</symbol>
+<symbol id="ic-rocket" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12 2c3 1.5 5 5 5 9 0 2-1 4-2 5l-3 2-3-2c-1-1-2-3-2-5 0-4 2-7.5 5-9Z"/><circle cx="12" cy="9" r="1.6"/>
+  <path d="M9 16l-2 4M15 16l2 4M9 20h6"/>
+</symbol>
+<symbol id="ic-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="12" r="3.2"/><path d="M12 3v2.4M12 18.6V21M21 12h-2.4M5.4 12H3M18 6l-1.7 1.7M7.7 16.3 6 18M18 18l-1.7-1.7M7.7 7.7 6 6"/>
+</symbol>
+<symbol id="ic-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5v-15Z"/><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20"/>
+</symbol>
+<symbol id="ic-gamepad" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M6 9h12l2 7a2 2 0 0 1-3.5 1.8L15 16H9l-1.5 1.8A2 2 0 0 1 4 16l2-7Z"/><path d="M8 12h2M9 11v2M16 11.5h.01M18 13h.01"/>
+</symbol>
+<symbol id="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M20 6 9 17l-5-5"/>
+</symbol>
+<symbol id="ic-warn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12 3 2 20h20L12 3Z"/><path d="M12 9v5M12 17h.01"/>
+</symbol>
+<symbol id="ic-bulb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M9 18h6M10 21h4M7 9a5 5 0 1 1 8.7 3.4c-.8.9-1.7 1.7-1.7 3.1v.5H10v-.5c0-1.4-.9-2.2-1.7-3.1A5 5 0 0 1 7 9Z"/>
+</symbol>
+<symbol id="ic-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/>
+</symbol>
+</defs>
+</svg>
+
+<script>
+/* ============================================================
+   SLIDE DATA — deck 0: מבוא לתכנות ול-Python
+   ============================================================ */
+const FILE_NAME = "01_first_program.py";
+const SLIDES = [
+
+{ type:"title", kicker:"מכינה תקשוב &middot; יחידה 1", title:'הצעד <span class="py-mark">הראשון</span> <span class="py-mark2">שלכם</span>',
+  sub:"מבוא לשפת Python וכתיבת התוכנית הראשונה שלכם — פקודת print().",
+  prompt:'>>> print("שלום, Python!") <span class="caret"></span>' },
+
+{ type:"content", eyebrow:"מטרות השיעור", title:"מה <span class='accent'>נלמד</span> היום?",
+  body:`
+  <ul class="plain">
+    <li>איך כותבים ומריצים תוכנית Python ראשונה</li>
+    <li>איך "מדברים" עם המחשב באמצעות הפקודה <code style="font-family:var(--font-mono);color:var(--gold)">print()</code></li>
+    <li>מה ההבדל בין טקסט (מחרוזת) לבין מספר</li>
+    <li>איך מזהים ומתקנים את הטעויות הכי נפוצות של מתחילים, ואיך קוראים הודעת שגיאה</li>
+  </ul>
+  <div class="callout tip" style="margin-top:24px">
+    <svg class="icon" viewBox="0 0 24 24"><use href="#ic-bulb"/></svg>
+    <p>בסוף השיעור תדעו לכתוב תוכנית Python אמיתית משלכם — גם אם מעולם לא תכנתתם קודם.</p>
+  </div>` },
+
+{ type:"content", eyebrow:"לפני שמתחילים", title:"טעויות הן חלק <span class='accent'>מהתהליך</span>",
+  body:`
+  <p class="body-text">היום נכתוב הרבה שורות קוד ראשונות — וכמעט בטוח שחלקן <strong class="hl2">לא ירוצו בפעם הראשונה</strong>. זה בדיוק מה שאמור לקרות, וזה בסדר גמור.</p>
+  <p class="body-text">גם מתכנתים עם עשרות שנות ניסיון מקבלים שגיאות כל יום. ההבדל היחיד הוא <strong class="hl">שהם כבר לא נבהלים מזה</strong> — הם פשוט קוראים את השגיאה, ומתקנים.</p>` },
+
+{ type:"content", eyebrow:"תזכורת", title:"מה זו <span class='accent'>תוכנית</span>?",
+  body:`
+  <p class="body-text">תוכנית היא <strong class="hl2">רשימת הוראות</strong> שהמחשב מבצע <strong class="hl">אחת אחרי השנייה, מלמעלה למטה</strong> — בדיוק לפי הסדר שכתבתם.</p>
+  <p class="body-text">כל שורת קוד שנכתוב היום היא הוראה אחת. נריץ את התוכנית, והמחשב יבצע כל שורה בתורה.</p>
+  <div class="grid cols-3" style="margin-top:20px">
+    <div class="card blue"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-terminal"/></svg><h3>שורה 1</h3><p>מבוצעת ראשונה</p></div>
+    <div class="card gold"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-terminal"/></svg><h3>שורה 2</h3><p>מבוצעת אחריה</p></div>
+    <div class="card green"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-terminal"/></svg><h3>שורה 3</h3><p>וכן הלאה...</p></div>
+  </div>` },
+
+{ type:"content", eyebrow:"לפני שכותבים", title:"איך <span class='accent'>מריצים</span> תוכנית בפועל?",
+  body:`
+  <p class="body-text">קובץ קוד ב-Python נשמר עם סיומת <code style="font-family:var(--font-mono);color:var(--gold)">.py</code> — לדוגמה <code style="font-family:var(--font-mono);color:var(--gold)">program.py</code>.</p>
+  <ul class="plain">
+    <li>שם הקובץ — <strong class="hl2">בלי רווחים</strong>, ורצוי באותיות אנגליות קטנות, למשל <code style="font-family:var(--font-mono);color:var(--ink-dim)">my_program.py</code></li>
+    <li>אחרי שכותבים קוד — לוחצים <strong class="hl">Run</strong> (או מריצים בטרמינל בפקודה <code style="font-family:var(--font-mono);color:var(--ink-dim)">python program.py</code>)</li>
+    <li>הפלט מופיע ב<strong class="hl2">Terminal</strong> — החלון שבו רואים את מה שהתוכנית "אומרת"</li>
+  </ul>
+  <div class="callout tip" style="margin-top:16px">
+    <svg class="icon" viewBox="0 0 24 24"><use href="#ic-bulb"/></svg>
+    <p>יש גם אפשרות לכתוב שורת קוד בודדת ולהריץ אותה מיד, בלי לשמור קובץ — זה נקרא מצב <strong>אינטראקטיבי</strong>. לרוב התרגילים בשיעור נעבוד עם קובץ שמור.</p>
+  </div>` },
+
+{ type:"content", eyebrow:"סביבת העבודה", title:"איפה <span class='accent'>כותבים</span> את הקוד?",
+  body:`
+  <div class="split">
+    <div>
+      <p class="body-text">נעבוד עם <strong class="hl">VS Code</strong> (עם תוסף Python) או עם <strong class="hl">מפעיל Python מקוון</strong> בדפדפן — לפי מה שנקבע בכיתה.</p>
+      <p class="body-text">בשני המקרים יש שני אזורים עיקריים:</p>
+      <ul class="plain">
+        <li><strong class="hl2">חלון הקוד</strong> (למעלה) — כאן כותבים את התוכנית ושומרים אותה כקובץ</li>
+        <li><strong class="hl2">חלון הפלט / Terminal</strong> (למטה) — כאן רואים מה שהודפס, אחרי שלוחצים <b style="font-family:var(--font-mono);color:var(--green)">Run</b></li>
+      </ul>
+    </div>
+    <div class="art">
+      <svg viewBox="0 0 220 200" width="260" height="230">
+        <rect x="10" y="10" width="200" height="110" rx="8" fill="#0c1019" stroke="#55c6f2" stroke-width="2"/>
+        <text x="22" y="35" font-family="monospace" font-size="12" fill="#bda2f2">print</text>
+        <text x="55" y="35" font-family="monospace" font-size="12" fill="#939bb8">(</text>
+        <text x="60" y="35" font-family="monospace" font-size="12" fill="#ffd166">"היי"</text>
+        <text x="95" y="35" font-family="monospace" font-size="12" fill="#939bb8">)</text>
+        <rect x="10" y="130" width="200" height="60" rx="8" fill="#0a0d14" stroke="#6fe3b4" stroke-width="2"/>
+        <text x="22" y="155" font-family="monospace" font-size="12" fill="#5c6485">Terminal</text>
+        <text x="22" y="175" font-family="monospace" font-size="13" fill="#6fe3b4">היי</text>
+      </svg>
+    </div>
+  </div>` },
+
+{ type:"content", eyebrow:"מושג מרכזי", title:"הפונקציה <span class='accent'>print()</span>",
+  body:`
+  <p class="body-text">הדרך הראשונה שבה תוכנית "מדברת" איתנו היא באמצעות <strong class="hl2">print()</strong> — פקודה שמדפיסה משהו על המסך.</p>
+  <ul class="plain">
+    <li>כותבים <code style="font-family:var(--font-mono);color:var(--gold)">print</code> ואחריו <strong>סוגריים עגולים</strong> <code style="font-family:var(--font-mono);color:var(--ink-dim)">( )</code></li>
+    <li>בתוך הסוגריים כותבים את מה שרוצים להדפיס</li>
+    <li>טקסט חייב להיות בתוך <strong class="hl">מרכאות</strong> — <code style="font-family:var(--font-mono);color:var(--gold)">" "</code> או <code style="font-family:var(--font-mono);color:var(--gold)">' '</code></li>
+  </ul>
+  <div class="callout tip">
+    <svg class="icon" viewBox="0 0 24 24"><use href="#ic-bulb"/></svg>
+    <p>טקסט בתוך מרכאות נקרא <strong>מחרוזת</strong> (String) — כל מה שבתוך המרכאות מודפס בדיוק כמו שהוא, מילה במילה.</p>
+  </div>` },
+
+{ type:"code", eyebrow:"מבנה הפקודה", title:"אנטומיה של <span class='accent'>print()</span>",
+  desc:"בואו נפרק את הפקודה לחלקים, כדי שתדעו לזהות כל חלק בעצמכם:",
+  code:[
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"("},{t:"tok-str",c:'"שלום"'},{t:"tok-punc",c:")"},
+  ],
+  outLabel:"", outText:"" },
+
+{ type:"content", eyebrow:"מבנה הפקודה", title:"שלושה חלקים <span class='accent'>קבועים</span>",
+  body:`
+  <div class="grid cols-3">
+    <div class="card blue"><h3 style="font-family:var(--font-mono)">print</h3><p><strong>שם הפונקציה</strong> — אומר למחשב "תדפיס משהו על המסך"</p></div>
+    <div class="card gold"><h3 style="font-family:var(--font-mono)">( )</h3><p><strong>סוגריים</strong> — כל מה שרוצים להדפיס נמצא ביניהם, תמיד</p></div>
+    <div class="card violet"><h3 style="font-family:var(--font-mono)">"שלום"</h3><p><strong>הארגומנט</strong> — הערך בפועל שמועבר לפונקציה כדי שתדפיס אותו</p></div>
+  </div>
+  <p class="body-text" style="margin-top:18px">כל פקודה ב-Python שמסתיימת בסוגריים <code style="font-family:var(--font-mono);color:var(--ink-dim)">( )</code> היא <strong class="hl2">פונקציה</strong> — נעמיק בזה הרבה יותר בהמשך הקורס.</p>` },
+
+{ type:"exercises", eyebrow:"בדקו הבנה", title:"זהו את <span class='accent'>החלקים</span>",
+  desc:"בהינתן השורה <code>print(\"שלום\")</code> — ענו בעל פה או בכתב:",
+  items:[
+    {tag:"easy", text:"מה שם הפונקציה בשורה הזו?"},
+    {tag:"easy", text:"מה תפקיד הסוגריים <code>( )</code>?"},
+    {tag:"easy", text:"מה ה<strong>ארגומנט</strong> שמועבר לפונקציה כאן?"},
+  ]},
+
+{ type:"code", eyebrow:"דוגמה 1 · הכי קל", title:"התוכנית הראשונה <span class='accent'>שלכם</span>",
+  desc:"זו התוכנית הכי פשוטה שיש. שורה אחת בלבד:",
+  code:[
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"("},{t:"tok-str",c:'"שלום, עולם!"'},{t:"tok-punc",c:")"},
+  ],
+  outLabel:"פלט:", outText:"שלום, עולם!" },
+
+{ type:"exercises", eyebrow:"תרגול מיידי", title:"נסו <span class='accent'>עכשיו</span>, לפני שממשיכים",
+  desc:"קחו שתי דקות, פתחו את סביבת העבודה, ונסו בעצמכם:",
+  items:[
+    {tag:"easy", text:"כתבו תוכנית שמדפיסה את <strong>השם</strong> שלכם, בעזרת print()."},
+    {tag:"easy", text:"כתבו תוכנית שמדפיסה את <strong>הצבע האהוב</strong> עליכם."},
+  ]},
+
+{ type:"code", eyebrow:"דוגמה 2 · טקסט לעומת מספר", title:"מרכאות משנות <span class='accent'>הכל</span>",
+  desc:"שימו לב להבדל: מספר בלי מרכאות, לעומת אותו מספר בתוך מרכאות (שהופך אותו לטקסט):",
+  code:[
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"("},{t:"tok-num",c:"5"},{t:"tok-punc",c:")"},{t:"",c:"\n"},
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"("},{t:"tok-str",c:'"5"'},{t:"tok-punc",c:")"},
+  ],
+  outLabel:"פלט:", outText:"5\n5" },
+
+{ type:"content", eyebrow:"למה זה חשוב", title:"אז מה <span class='accent'>ההבדל</span>?",
+  body:`
+  <p class="body-text">שתי השורות הקודמות מדפיסות אותו הדבר על המסך — <strong class="hl">5</strong>. אז מה בכלל ההבדל?</p>
+  <div class="grid cols-2" style="margin-top:10px">
+    <div class="card blue"><h3 style="font-family:var(--font-mono)">5</h3><p>Python יודעת שאפשר לחשב איתו: לחבר, לחסר, להכפיל</p></div>
+    <div class="card gold"><h3 style="font-family:var(--font-mono)">"5"</h3><p>Python מתייחסת אליו כאל תו בודד, בדיוק כמו האות א׳ — לא ניתן לחשב איתו</p></div>
+  </div>
+  <p class="body-text" style="margin-top:16px">נעמיק בהבדל הזה ביחידה הבאה. כרגע חשוב רק לזכור: <strong class="hl2">מרכאות = טקסט</strong>.</p>` },
+
+{ type:"code", eyebrow:"בונוס · עוד מספרים", title:"מספרים <span class='accent'>שליליים ועשרוניים</span>",
+  desc:"בלי מרכאות, Python מזהה כל מיני צורות של מספרים — לא רק מספרים שלמים חיוביים:",
+  code:[
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"("},{t:"tok-num",c:"-5"},{t:"tok-punc",c:")"},{t:"",c:"\n"},
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"("},{t:"tok-num",c:"3.14"},{t:"tok-punc",c:")"},
+  ],
+  outLabel:"פלט:", outText:"-5\n3.14" },
+
+{ type:"content", eyebrow:"מושג נוסף", title:"הערות בקוד — <span class='accent'>הפתק הקטן</span> שלכם",
+  body:`
+  <p class="body-text">לפעמים רוצים לכתוב הסבר לעצמכם (או למי שיקרא את הקוד) בלי שהמחשב "יבצע" אותו. לשם כך יש <strong class="hl2">הערות</strong> (comments) — כל מה שאחרי הסימן <code style="font-family:var(--font-mono);color:var(--gold)">#</code> בשורה, Python מתעלמת ממנו לגמרי.</p>
+  <ul class="plain">
+    <li>הערה יכולה להיות <strong class="hl">בשורה נפרדת</strong>, מעל הקוד שהיא מסבירה</li>
+    <li>הערה יכולה גם להופיע <strong class="hl">בסוף שורת קוד</strong> קיימת</li>
+    <li>שימוש נפוץ נוסף: "לכבות" זמנית שורת קוד בלי למחוק אותה</li>
+  </ul>
+  <div class="callout tip" style="margin-top:16px">
+    <svg class="icon" viewBox="0 0 24 24"><use href="#ic-bulb"/></svg>
+    <p>הערות טובות מסבירות <strong>למה</strong> כתבתם משהו, לא <strong>מה</strong> הוא עושה — זה כבר אמור להיות ברור מהקוד עצמו.</p>
+  </div>` },
+
+{ type:"code", eyebrow:"דוגמה · הערות", title:"הערה <span class='accent'>שלא</span> מודפסת",
+  desc:"שימו לב: השורה עם ה-# לא מופיעה בפלט בכלל — Python פשוט מדלגת עליה:",
+  code:[
+    {t:"tok-com",c:"# התוכנית מדפיסה ברכה פשוטה"},{t:"",c:"\n"},
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"("},{t:"tok-str",c:'"שלום!"'},{t:"tok-punc",c:")"},{t:"tok-com",c:"  # זו הערה בסוף שורה"},
+  ],
+  outLabel:"פלט:", outText:"שלום!" },
+
+{ type:"code", eyebrow:"דוגמה 3 · כמה שורות", title:"כמה פקודות <span class='accent'>print</span> ברצף",
+  desc:"אפשר להשתמש ב-print() כמה פעמים שרוצים — כל אחת מדפיסה שורה חדשה, לפי הסדר:",
+  code:[
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"("},{t:"tok-str",c:'"שם: דנה"'},{t:"tok-punc",c:")"},{t:"",c:"\n"},
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"("},{t:"tok-str",c:'"גיל: 17"'},{t:"tok-punc",c:")"},{t:"",c:"\n"},
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"("},{t:"tok-str",c:'"עיר: חיפה"'},{t:"tok-punc",c:")"},
+  ],
+  outLabel:"פלט:", outText:"שם: דנה\nגיל: 17\nעיר: חיפה" },
+
+{ type:"code", eyebrow:"עוד טריק", title:"שורה <span class='accent'>ריקה</span> בפלט",
+  desc:"קריאה ל-print() בלי כלום בסוגריים פשוט מדפיסה שורה ריקה — שימושי כדי להפריד חזותית בין חלקים בפלט:",
+  code:[
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"("},{t:"tok-str",c:'"שורה ראשונה"'},{t:"tok-punc",c:")"},{t:"",c:"\n"},
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"()"},{t:"",c:"\n"},
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"("},{t:"tok-str",c:'"שורה שנייה"'},{t:"tok-punc",c:")"},
+  ],
+  outLabel:"פלט:", outText:"שורה ראשונה\n\nשורה שנייה" },
+
+{ type:"code", eyebrow:"דוגמה 4 · פסיקים", title:"הדפסת <span class='accent'>כמה ערכים</span> באותה שורה",
+  desc:"אפשר להעביר ל-print() כמה ערכים מופרדים בפסיק — Python תדפיס אותם ברצף, עם רווח ביניהם, אוטומטית:",
+  code:[
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"("},{t:"tok-str",c:'"שלום"'},{t:"tok-punc",c:", "},{t:"tok-str",c:'"עולם"'},{t:"tok-punc",c:")"},
+  ],
+  outLabel:"פלט:", outText:"שלום עולם" },
+
+{ type:"content", eyebrow:"מאחורי הקלעים", title:"איך <span class='accent'>Python</span> מפרידה בין ערכים?",
+  body:`
+  <p class="body-text">שמתם לב שב-<code style="font-family:var(--font-mono);color:var(--gold)">print("שלום", "עולם")</code> Python הוסיפה <strong class="hl2">רווח</strong> בין המילים אוטומטית, למרות שלא כתבנו אותו?</p>
+  <p class="body-text">זו התנהגות ברירת המחדל: כשמעבירים ל-print() כמה ערכים מופרדים בפסיק, Python מציבה <strong class="hl">רווח בודד</strong> בין כל שניים מהם, אוטומטית.</p>
+  <div class="callout tip">
+    <svg class="icon" viewBox="0 0 24 24"><use href="#ic-bulb"/></svg>
+    <p>אפשר גם לערבב טקסט ומספרים באותה שורת print, בלי בעיה: <code style="font-family:var(--font-mono);color:var(--gold)">print("גיל:", 17)</code> מדפיס <strong>גיל: 17</strong>.</p>
+  </div>` },
+
+{ type:"code", eyebrow:"דוגמה 5 · תו בריחה", title:"שורה חדשה <span class='accent'>בתוך</span> print אחד",
+  desc:"עד עכשיו יצרנו שורה חדשה עם עוד print. יש גם דרך ליצור שורה חדשה בתוך מחרוזת אחת — עם <code style='font-family:var(--font-mono);color:var(--gold)'>\\n</code>, \"תו בריחה\" שאומר ל-Python \"עברי לשורה הבאה\":",
+  code:[
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"("},{t:"tok-str",c:'"שלום'},{t:"tok-kw",c:"\\n"},{t:"tok-str",c:'עולם"'},{t:"tok-punc",c:")"},
+  ],
+  outLabel:"פלט (שתי שורות!):", outText:"שלום\nעולם" },
+
+{ type:"code", eyebrow:"בונוס · טאבים", title:"תו בריחה נוסף: <span class='accent'>\\t</span> (טאב)",
+  desc:"בדיוק כמו \\n יוצר שורה חדשה, <code style='font-family:var(--font-mono);color:var(--gold)'>\\t</code> מוסיף רווח גדול בגודל טאב — שימושי ליישור טקסט בטבלה פשוטה:",
+  code:[
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"("},{t:"tok-str",c:'"שם:'},{t:"tok-kw",c:"\\t"},{t:"tok-str",c:'דנה"'},{t:"tok-punc",c:")"},{t:"",c:"\n"},
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"("},{t:"tok-str",c:'"גיל:'},{t:"tok-kw",c:"\\t"},{t:"tok-str",c:'17"'},{t:"tok-punc",c:")"},
+  ],
+  outLabel:"פלט (מיושר בעזרת טאב):", outText:"שם:    דנה\nגיל:    17" },
+
+{ type:"content", eyebrow:"בונוס · מרכאות משולשות", title:"מחרוזות <span class='accent'>מרובות שורות</span>",
+  body:`
+  <p class="body-text">עד עכשיו יצרנו שורה חדשה עם <code style="font-family:var(--font-mono);color:var(--gold)">\\n</code>. יש גם דרך לכתוב טקסט ארוך שפרוס על כמה שורות <strong class="hl2">ממש כמו שהוא נראה</strong> — עם שלוש מרכאות ברצף:</p>
+  <ul class="plain">
+    <li>פותחים ב-<code style="font-family:var(--font-mono);color:var(--gold)">"""</code> (שלוש מרכאות כפולות)</li>
+    <li>כותבים כמה שורות שרוצים, ממש עם Enter</li>
+    <li>סוגרים שוב ב-<code style="font-family:var(--font-mono);color:var(--gold)">"""</code></li>
+  </ul>
+  <p class="body-text" style="margin-top:14px">שימושי במיוחד להדפסת טקסט ארוך — שיר, הודעה, או ציור ASCII — בלי צורך ב-\\n בכל שורה.</p>` },
+
+{ type:"code", eyebrow:"דוגמה · טקסט ארוך", title:"מחרוזת <span class='accent'>משולשת</span> בפעולה",
+  desc:"שלוש שורות טקסט, בקריאת print() אחת בלבד:",
+  code:[
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"("},{t:"tok-str",c:'"""שלום לכולם'},{t:"",c:"\n"},{t:"tok-str",c:"מקווה שנהנים מהשיעור"},{t:"",c:"\n"},{t:"tok-str",c:'להתראות!"""'},{t:"tok-punc",c:")"},
+  ],
+  outLabel:"פלט (שלוש שורות!):", outText:"שלום לכולם\nמקווה שנהנים מהשיעור\nלהתראות!" },
+
+{ type:"content", eyebrow:"דוגמה 6 · מרכאות בתוך מרכאות", title:"איך <span class='accent'>מדפיסים גרש</span> בתוך מחרוזת?",
+  body:`
+  <p class="body-text">מה קורה כשבטקסט שרוצים להדפיס יש גרש בודד, כמו במילה <span style="font-family:var(--font-mono)">I'm</span>? יש לזה שתי דרכים פתרון:</p>
+  <div class="split">
+    <div class="codewrap">
+      <div class="chead">אפשרות 1: להחליף סוג מרכאות</div>
+      <pre class="code"><span class="tok-fn">print</span><span class="tok-punc">(</span><span class="tok-str">"I'm learning Python"</span><span class="tok-punc">)</span></pre>
+    </div>
+    <div class="codewrap">
+      <div class="chead">אפשרות 2: לברוח מהגרש</div>
+      <pre class="code"><span class="tok-fn">print</span><span class="tok-punc">(</span><span class="tok-str">'I</span><span class="tok-kw">\\'</span><span class="tok-str">m learning Python'</span><span class="tok-punc">)</span></pre>
+    </div>
+  </div>
+  <p class="body-text" style="margin-top:16px">שתי הגרסאות מדפיסות בדיוק <strong class="hl">I'm learning Python</strong>. הפתרון הפשוט ביותר בדרך כלל: אם יש גרש בודד בפנים — לעטוף במרכאות כפולות מבחוץ.</p>` },
+
+{ type:"content", eyebrow:"שימו לב", title:"<span class='accent'>מלכודות</span> נפוצות",
+  body:`
+  <div class="callout warn">
+    <svg class="icon" viewBox="0 0 24 24"><use href="#ic-warn"/></svg>
+    <p><strong>שכחתם לסגור מרכאות?</strong> — <code style="font-family:var(--font-mono);color:var(--coral)">print("שלום)</code> ייתן שגיאה. כל מרכאה פתוחה חייבת להיסגר.</p>
+  </div>
+  <div class="callout warn">
+    <svg class="icon" viewBox="0 0 24 24"><use href="#ic-warn"/></svg>
+    <p><strong>Python רגישה לאותיות רישיות</strong> — <code style="font-family:var(--font-mono);color:var(--coral)">Print("היי")</code> ייתן שגיאה. חייב להיות <code style="font-family:var(--font-mono);color:var(--green)">print</code> באותיות קטנות.</p>
+  </div>
+  <div class="callout warn">
+    <svg class="icon" viewBox="0 0 24 24"><use href="#ic-warn"/></svg>
+    <p><strong>שכחתם סוגריים?</strong> — <code style="font-family:var(--font-mono);color:var(--coral)">print "היי"</code> בלי סוגריים ייתן שגיאה. תמיד <code style="font-family:var(--font-mono);color:var(--green)">print(...)</code>.</p>
+  </div>` },
+
+{ type:"content", eyebrow:"שימו לב גם לזה", title:"מלכודת נסתרת: <span class='accent'>מרכאות \"חכמות\"</span>",
+  body:`
+  <p class="body-text">אם הכנתם טקסט קודם ב-Word, PowerPoint או וואטסאפ, והדבקתם אותו לקוד — שימו לב: תוכנות כאלה נוטות להחליף מרכאות רגילות <code style="font-family:var(--font-mono);color:var(--green)">" "</code> ב"מרכאות חכמות" מעוצבות <code style="font-family:var(--font-mono);color:var(--coral)">" "</code>.</p>
+  <p class="body-text">Python <strong class="hl">לא מזהה</strong> את המרכאות המעוצבות ככלי לפתיחת/סגירת מחרוזת — התוצאה תהיה שגיאה מוזרה שקשה להבין ממבט ראשון.</p>
+  <div class="callout warn">
+    <svg class="icon" viewBox="0 0 24 24"><use href="#ic-warn"/></svg>
+    <p>הפתרון: כתבו טקסט ישירות בעורך הקוד, לא בתוכנת עיבוד תמלילים — כך תמיד תקבלו מרכאות "רגילות".</p>
+  </div>` },
+
+{ type:"content", eyebrow:"מיומנות חשובה", title:"איך <span class='accent'>קוראים</span> הודעת שגיאה?",
+  body:`
+  <p class="body-text">כשמריצים את <code style="font-family:var(--font-mono);color:var(--coral)">print("שלום)</code> (בלי מרכאה סוגרת) — Python לא "נתקעת" סתם, היא מסבירה בדיוק מה קרה:</p>
+  <div class="outwrap" style="border-color:var(--coral-dim)">
+    <div class="ohead">הודעת שגיאה (מקוצרת):</div>
+    <div class="obody" style="color:var(--coral)">  File "program.py", line 1
+    print("שלום)
+               ^
+SyntaxError: unterminated string literal</div>
+  </div>
+  <div class="grid cols-3" style="margin-top:16px">
+    <div class="card blue"><h3 style="font-family:var(--font-mono);font-size:13px">line 1</h3><p>באיזו שורה בדיוק לחפש את הבעיה</p></div>
+    <div class="card gold"><h3 style="font-family:var(--font-mono)">^</h3><p>החץ מצביע על המקום המדויק שבו Python "התבלבלה"</p></div>
+    <div class="card violet"><h3 style="font-family:var(--font-mono);font-size:13px">SyntaxError</h3><p>סוג השגיאה — כאן: משהו לא תקין בתחביר עצמו</p></div>
+  </div>
+  <div class="callout tip" style="margin-top:16px">
+    <svg class="icon" viewBox="0 0 24 24"><use href="#ic-bulb"/></svg>
+    <p>הודעת שגיאה היא לא אויב — היא <strong>מפה</strong> שמראה בדיוק לאן ללכת כדי לתקן.</p>
+  </div>` },
+
+{ type:"content", eyebrow:"תרגול קריאה", title:"עוד <span class='accent'>דוגמת שגיאה</span> לפענוח",
+  body:`
+  <p class="body-text">הפעם נסתכל על שגיאה אחרת: <code style="font-family:var(--font-mono);color:var(--coral)">print("שלום"</code> — בלי סוגר סוגר בסוף.</p>
+  <div class="outwrap" style="border-color:var(--coral-dim)">
+    <div class="ohead">הודעת שגיאה (מקוצרת):</div>
+    <div class="obody" style="color:var(--coral)">  File "program.py", line 1
+    print("שלום"
+                ^
+SyntaxError: '(' was never closed</div>
+  </div>
+  <p class="body-text" style="margin-top:16px">שימו לב: הפעם ה-<code style="font-family:var(--font-mono);color:var(--ink-dim)">SyntaxError</code> הוא שונה — <strong class="hl2">'(' was never closed</strong> אומר במפורש "שכחת לסגור סוגריים", לא בעיה במרכאות.</p>
+  <div class="callout tip" style="margin-top:12px">
+    <svg class="icon" viewBox="0 0 24 24"><use href="#ic-bulb"/></svg>
+    <p>ככל שתתרגלו לקרוא הודעות שגיאה, כך תזהו הרבה יותר מהר <strong>איזה</strong> סוג טעות קרה — לפני שאפילו תסתכלו שוב על הקוד.</p>
+  </div>` },
+
+{ type:"content", eyebrow:"טיפ לפני התרגול", title:"פלט <span class='accent'>מדויק</span> — עד לתו האחרון",
+  body:`
+  <p class="body-text">בחלק מהתרגילים הבאים מבקשים פלט שזהה <strong class="hl2">בדיוק בדיוק</strong> למה שמוצג — כולל רווחים, אותיות רישיות/קטנות, וירידות שורה.</p>
+  <p class="body-text">זו לא סתם דקדקנות — זו הכנה למיומנות חשובה: לתכנת שקורא מפרט (specification) ולוודא שהתוכנית עומדת בו <strong class="hl">בדיוק</strong>, לא "בערך".</p>` },
+
+{ type:"exercises", eyebrow:"תרגול · חלק א׳", title:"משימות — <span class='accent'>רמה קלה</span>",
+  desc:"כתבו תוכנית Python קצרה לכל משימה, בעזרת print() בלבד.",
+  items:[
+    {tag:"easy", text:"כתבו תוכנית שמדפיסה את <strong>השם הפרטי</strong> שלכם."},
+    {tag:"easy", text:"כתבו תוכנית שמדפיסה את <strong>המאכל האהוב</strong> עליכם."},
+    {tag:"easy", text:"כתבו תוכנית שמדפיסה <strong>שלוש שורות נפרדות</strong>: שם, עיר מגורים, ותחביב."},
+    {tag:"easy", text:"מה ההבדל בין <code>print(7)</code> ל-<code>print(\"7\")</code>? כתבו את שתי השורות, הריצו, ותארו מה קורה."},
+  ]},
+
+{ type:"exercises", eyebrow:"תרגול · חלק ב׳", title:"משימות — <span class='accent'>רמה בינונית</span>",
+  desc:"כאן צריך קצת יותר תשומת לב לפרטים הקטנים.",
+  items:[
+    {tag:"med", text:"כתבו תוכנית שמדפיסה <strong>כרטיס ביקור</strong> אישי — לפחות 4 שורות, כולל שורת מסגרת עשויה מהתו <code>=</code> מלמעלה ומלמטה."},
+    {tag:"med", text:"איתור באג: הקוד <code>print(\"שלום)</code> לא רץ. מה חסר? תקנו אותו, והריצו כדי לוודא שהשגיאה נעלמה."},
+    {tag:"med", text:"איתור באג: הקוד <code>Print(\"היי\")</code> לא רץ. מה הבעיה?"},
+    {tag:"med", text:"נחשו מה יודפס <strong>לפני</strong> שאתם מריצים, ורק אז בדקו: <code>print(\"2\", \"+\", \"2\")</code>. הופתעתם?"},
+    {tag:"med", text:"כתבו תוכנית עם <strong>print יחיד</strong> שמדפיסה שתי שורות, בעזרת <code>\\n</code> בתוך המחרוזת."},
+  ]},
+
+{ type:"exercises", eyebrow:"תרגול · חלק ב׳ (המשך)", title:"עוד משימות — <span class='accent'>רמה בינונית</span>",
+  desc:"עכשיו עם הערות, טאבים ומחרוזות משולשות.",
+  items:[
+    {tag:"med", text:"כתבו תוכנית עם <strong>שתי שורות הערה</strong> (#) בתחילתה שמסבירות מה היא עושה, ואז שורת print אחת."},
+    {tag:"med", text:"השתמשו ב-<code>\\t</code> כדי להדפיס \"טבלה\" קטנה של שני מוצרים ומחיריהם, מיושרת לעמודות."},
+    {tag:"med", text:"כתבו תוכנית עם print יחיד המשתמש במחרוזת משולשת (<code>\"\"\"</code>) כדי להדפיס שלוש שורות של פרטי קשר: שם, טלפון, אימייל."},
+  ]},
+
+{ type:"exercises", eyebrow:"תרגול · חלק ג׳", title:"משימות — <span class='accent'>רמה מאתגרת</span>",
+  desc:"המשימות האלה דורשות קצת יצירתיות עם מה שלמדנו.",
+  items:[
+    {tag:"hard", text:"כתבו תוכנית שמדפיסה <strong>ציור ASCII</strong> פשוט (למשל בית או כוכב) בעזרת כמה שורות print בלבד."},
+    {tag:"hard", text:'תרגיל התאמה: הפלט הרצוי הוא <strong>בדיוק</strong> כך —<br><code style="display:block;margin-top:6px;white-space:pre">***\n*A*\n***</code> כתבו את שורות ה-print שיפיקו פלט זהה לחלוטין.'},
+    {tag:"hard", text:"רוצים להדפיס משפט שיש בו גרש בודד, למשל <code>I'm learning Python</code> — השתמשו באחת משתי הדרכים שראינו כדי לפתור זאת."},
+  ]},
+
+{ type:"exercises", eyebrow:"תרגול · חלק ג׳ (המשך)", title:"עוד משימות — <span class='accent'>רמה מאתגרת</span>",
+  desc:"שילוב של כמה כלים חדשים יחד.",
+  items:[
+    {tag:"hard", text:"כתבו \"ציור ASCII\" (בית, פרצוף מחייך, או כל צורה שתבחרו) בעזרת <strong>מחרוזת משולשת אחת בלבד</strong>."},
+    {tag:"hard", text:"כתבו תוכנית שיש בה קוד ש\"כובה\" זמנית בעזרת #, לצד שורת print פעילה — כאילו אתם בודקים גרסה ישנה מול חדשה."},
+  ]},
+
+{ type:"exercises", eyebrow:"תרגול · חלק ד׳", title:"משימות — <span class='accent'>מאתגר במיוחד</span>",
+  desc:"לאלה שרוצים אתגר נוסף — שילוב של כמה דברים שלמדנו יחד.",
+  items:[
+    {tag:"hard", text:"כתבו תוכנית שמדפיסה \"כרטיס זיהוי\" רב-שורתי, כשבאחת השורות חייב להופיע גם גרש בודד (') וגם משפט בתוך מרכאות כפולות (\") — איך פותרים כששני הסוגים נדרשים יחד?"},
+    {tag:"hard", text:'תרגיל דיוק: הפלט הרצוי הוא <strong>בדיוק</strong> כך (כולל כל הרווחים המובילים) —<br><code style="display:block;margin-top:6px;white-space:pre">  *\n ***\n*****</code> כתבו את שורות ה-print הנדרשות. שימו לב לרווחים בתחילת כל שורה.'},
+    {tag:"hard", text:"איתור באג משולש: בקוד <code>Print('שלום</code> יש <strong>שלוש</strong> שגיאות שונות בו-זמנית. מצאו את כל השלוש ותקנו."},
+  ]},
+
+{ type:"exercises", eyebrow:"תרגול · חלק ה׳", title:"אתגר <span class='accent'>בונוס</span>",
+  desc:"לאלה שרוצים להתאמן עוד קצת.",
+  items:[
+    {tag:"hard", text:"כתבו \"כרזת אירוע\" מרובת שורות (מחרוזת משולשת), עם לפחות שורת הערה אחת מעליה שמסבירה מה התוכנית מדפיסה."},
+    {tag:"hard", text:"איתור באג: בקוד <code>print('שלום)  # ברכה</code> יש שגיאה. מצאו אותה, תקנו, והריצו כדי לוודא שהתוצאה נכונה."},
+  ]},
+
+{ type:"exercises", eyebrow:"בדיקה עצמית", title:"שאלות <span class='accent'>חזרה</span> מהירות",
+  desc:"בלי לגלול אחורה — כמה מהן אתם זוכרים?",
+  items:[
+    {tag:"easy", text:"מה עושה הסימן <code>#</code> בתוך קוד Python?"},
+    {tag:"easy", text:"מה ההבדל בין <code>\\n</code> ל-<code>\\t</code>?"},
+    {tag:"med", text:"למה <code>Print(\"היי\")</code> לא רץ, בעוד ש-<code>print(\"היי\")</code> כן?"},
+    {tag:"med", text:"מתי כדאי להשתמש במחרוזת משולשת (<code>\"\"\"</code>) במקום מרכאות רגילות?"},
+  ]},
+
+{ type:"content", eyebrow:"לפני שסוגרים", title:"שישה דברים <span class='accent'>לזכור</span> מהיום",
+  body:`
+  <div class="grid cols-3">
+    <div class="card blue"><h3 style="font-family:var(--font-mono)">print()</h3><p>מדפיסה על המסך כל מה שבתוך הסוגריים</p></div>
+    <div class="card gold"><h3 style="font-family:var(--font-mono)">" "</h3><p>מרכאות הופכות כל דבר לטקסט (מחרוזת)</p></div>
+    <div class="card violet"><h3 style="font-family:var(--font-mono)">#</h3><p>הערה — שורה שה-Python מתעלמת ממנה</p></div>
+    <div class="card green"><h3 style="font-family:var(--font-mono)">\\n / \\t</h3><p>תווי בריחה ליצירת שורה חדשה או רווח טאב</p></div>
+    <div class="card coral"><h3 style="font-family:var(--font-mono)">"""..."""</h3><p>מחרוזת מרובת שורות, בלי צורך ב-\\n</p></div>
+    <div class="card blue"><h3 style="font-family:var(--font-mono)">SyntaxError</h3><p>הודעת שגיאה היא מפה — לא אויב</p></div>
+  </div>` },
+
+{ type:"title", kicker:"סיכום יחידה 1", title:'כל הכבוד — כתבתם <span class="py-mark">קוד</span> <span class="py-mark2">אמיתי</span>!',
+  sub:"בשיעור הבא: משתנים וטיפוסי נתונים — נלמד איך לשמור מידע בתוכנית ולא רק להדפיס אותו.",
+  prompt:'>>> next_lesson() <span class="caret"></span>' },
+];
+
+/* ============================================================
+   RENDER ENGINE — shared across all decks in this course.
+   Reads the SLIDES data array above and builds the DOM.
+   ============================================================ */
+function esc(s){ return String(s); } // content is authored HTML on purpose (icons, spans)
+
+function renderCode(tokens){
+  return tokens.map(tk => tk.t ? `<span class="${tk.t}">${tk.c}</span>` : tk.c).join("");
+}
+
+function buildSlide(s, i){
+  const el = document.createElement("section");
+  el.className = "slide";
+  el.dataset.index = i;
+
+  if(s.type === "title"){
+    el.classList.add("title-slide");
+    el.innerHTML = `
+      <div class="kicker">${s.kicker}</div>
+      <h1>${s.title}</h1>
+      <p>${s.sub}</p>
+      <div class="prompt-line">${s.prompt}</div>
+    `;
+  } else if(s.type === "content"){
+    el.innerHTML = `
+      <div class="eyebrow"><span class="dot"></span>${s.eyebrow}</div>
+      <h1 class="slide-title">${s.title}</h1>
+      ${s.body}
+    `;
+  } else if(s.type === "code"){
+    el.innerHTML = `
+      <div class="eyebrow"><span class="dot"></span>${s.eyebrow}</div>
+      <h1 class="slide-title">${s.title}</h1>
+      ${s.desc ? `<p class="body-text" style="margin-bottom:16px">${s.desc}</p>` : ""}
+      <div class="codewrap">
+        <div class="chead"><b>&gt;_</b> example.py</div>
+        <pre class="code">${renderCode(s.code)}</pre>
+      </div>
+      ${s.outText ? `
+      <div class="outwrap" style="margin-top:14px">
+        <div class="ohead">${s.outLabel || "פלט:"}</div>
+        <div class="obody">${s.outText}</div>
+      </div>` : ""}
+    `;
+  } else if(s.type === "exercises"){
+    el.innerHTML = `
+      <div class="eyebrow"><span class="dot"></span>${s.eyebrow}</div>
+      <h1 class="slide-title">${s.title}</h1>
+      ${s.desc ? `<p class="body-text" style="margin-bottom:6px">${s.desc}</p>` : ""}
+      <ul class="exlist">
+        ${s.items.map((it, idx) => `
+          <li>
+            <span class="tag ${it.tag}">${it.tag === "easy" ? "קל" : it.tag === "med" ? "בינוני" : "מאתגר"}</span>
+            <span class="exbody">${it.text}</span>
+            <span class="exnum">${idx+1}</span>
+          </li>
+        `).join("")}
+      </ul>
+    `;
+  }
+  return el;
+}
+
+(function initDeck(){
+  const viewport = document.getElementById("viewport");
+  const dotsNav = document.getElementById("dotsNav");
+  const fill = document.getElementById("progressFill");
+  const pgCur = document.getElementById("pg-cur");
+  const pgTotal = document.getElementById("pg-total");
+  const tbName = document.getElementById("tb-name");
+  if(tbName) tbName.textContent = (typeof FILE_NAME !== "undefined" ? FILE_NAME : "deck.py");
+
+  let cur = 0;
+  const n = SLIDES.length;
+  pgTotal.textContent = n;
+
+  SLIDES.forEach((s, i) => {
+    viewport.appendChild(buildSlide(s, i));
+    const dot = document.createElement("button");
+    dot.setAttribute("aria-label", "שקופית " + (i+1));
+    dot.addEventListener("click", () => go(i));
+    dotsNav.appendChild(dot);
+  });
+  const slideEls = Array.from(viewport.children);
+  const dotEls = Array.from(dotsNav.children);
+
+  function go(i){
+    cur = Math.max(0, Math.min(n-1, i));
+    slideEls.forEach((el, idx) => el.classList.toggle("active", idx === cur));
+    dotEls.forEach((el, idx) => el.classList.toggle("on", idx === cur));
+    fill.style.width = (n <= 1 ? 100 : (cur/(n-1))*100) + "%";
+    pgCur.textContent = cur + 1;
+  }
+  go(0);
+
+  document.getElementById("btnNext").addEventListener("click", () => go(cur+1));
+  document.getElementById("btnPrev").addEventListener("click", () => go(cur-1));
+  document.getElementById("btnFs").addEventListener("click", () => {
+    if(!document.fullscreenElement){ document.documentElement.requestFullscreen().catch(()=>{}); }
+    else { document.exitFullscreen().catch(()=>{}); }
+  });
+
+  window.addEventListener("keydown", (e) => {
+    if(["ArrowRight","PageDown"," ","Spacebar"].includes(e.key)){ go(cur+1); e.preventDefault(); }
+    else if(["ArrowLeft","PageUp"].includes(e.key)){ go(cur-1); e.preventDefault(); }
+    else if(e.key === "Home"){ go(0); e.preventDefault(); }
+    else if(e.key === "End"){ go(n-1); e.preventDefault(); }
+    else if(e.key === "f" || e.key === "F"){ document.getElementById("btnFs").click(); }
+  });
+
+  let touchX = null;
+  viewport.addEventListener("touchstart", (e) => { touchX = e.touches[0].clientX; }, {passive:true});
+  viewport.addEventListener("touchend", (e) => {
+    if(touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if(Math.abs(dx) > 50){ go(dx < 0 ? cur+1 : cur-1); }
+    touchX = null;
+  }, {passive:true});
+})();
+</script>

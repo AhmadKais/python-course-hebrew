@@ -1,0 +1,965 @@
+<title>מבוא לתכנות ול-Python</title>
+<style>
+/* ============================================================
+   DESIGN SYSTEM
+   Concept: the deck itself is staged as a code editor / terminal
+   window (title-bar dots, file tab) — grounded in the subject
+   (learning to code) rather than a generic slide template.
+   Committed single dark "editor" world by design (like a themed
+   terminal), the same way a themed arcade screen stays single-mode.
+   Font stack is an intentional native Hebrew system stack: the
+   Artifact sandbox blocks external font fetches, so rather than
+   link a webfont that silently falls back, we design directly
+   for the Hebrew system faces students' machines already have.
+   ============================================================ */
+:root{
+  --bg:            #0f1420;
+  --bg-panel:      #161c2c;
+  --bg-panel-2:    #1b2338;
+  --bg-titlebar:   #10151f;
+  --ink:           #e9edf6;
+  --ink-dim:       #939bb8;
+  --ink-faint:     #5c6485;
+  --line:          #2a3350;
+  --line-soft:     #212a44;
+
+  --blue:          #55c6f2;
+  --blue-dim:      #2d4a63;
+  --gold:          #ffd166;
+  --gold-dim:      #5a4a2c;
+  --coral:         #ff7a7a;
+  --coral-dim:     #5a2f34;
+  --green:         #6fe3b4;
+  --green-dim:     #204538;
+  --violet:        #bda2f2;
+  --violet-dim:    #3a2f57;
+
+  --font-display: "Rubik", "Segoe UI Variable Display", "Segoe UI", "Arial Hebrew", "Noto Sans Hebrew", "Heebo", "Arial", sans-serif;
+  --font-body:    "Assistant", "Segoe UI", "Arial Hebrew", "Noto Sans Hebrew", "Heebo", "Arial", sans-serif;
+  --font-mono:    "JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace, "SF Mono", Consolas, "Courier New", monospace;
+
+  --radius: 18px;
+  --shadow: 0 30px 80px -20px rgba(0,0,0,.65), 0 10px 30px -12px rgba(0,0,0,.5);
+}
+:root[data-theme="light"], :root[data-theme="dark"]{
+  /* Deliberately single-themed (see note above) — both branches keep the editor palette. */
+  --bg:#0f1420; --bg-panel:#161c2c; --bg-panel-2:#1b2338; --bg-titlebar:#10151f;
+  --ink:#e9edf6; --ink-dim:#939bb8; --ink-faint:#5c6485; --line:#2a3350; --line-soft:#212a44;
+}
+
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0;
+  background:
+    radial-gradient(1100px 620px at 12% -8%, #1a2440 0%, transparent 60%),
+    radial-gradient(900px 560px at 108% 8%, #1c1f3a 0%, transparent 55%),
+    var(--bg);
+  color:var(--ink);
+  font-family:var(--font-body);
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{ background:var(--blue); color:#0f1420; }
+
+/* ---------- stage & deck window ---------- */
+.stage{
+  position:fixed; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  padding:clamp(10px,3vh,34px) clamp(10px,3vw,34px);
+}
+.deck{
+  position:relative;
+  width:min(1180px, 96vw);
+  height:min(720px, 92vh);
+  background:linear-gradient(180deg, var(--bg-panel), var(--bg-panel-2));
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  display:flex; flex-direction:column;
+  overflow:hidden;
+}
+.titlebar{
+  display:flex; align-items:center; gap:14px;
+  padding:12px 18px;
+  background:var(--bg-titlebar);
+  border-bottom:1px solid var(--line);
+  direction:ltr; /* window chrome is a UI artifact, always LTR like a real editor */
+}
+.tb-dots{ display:flex; gap:7px; }
+.tb-dots span{ width:11px; height:11px; border-radius:50%; display:block; }
+.tb-dots span:nth-child(1){ background:#ff6159; }
+.tb-dots span:nth-child(2){ background:#ffbd2e; }
+.tb-dots span:nth-child(3){ background:#28c93f; }
+.tb-tab{
+  font-family:var(--font-mono);
+  font-size:12.5px;
+  color:var(--ink-dim);
+  background:var(--bg-panel);
+  border:1px solid var(--line);
+  border-bottom:none;
+  padding:5px 12px 6px;
+  border-radius:8px 8px 0 0;
+  margin-inline-start:6px;
+}
+.tb-tab b{ color:var(--gold); font-weight:600; }
+.tb-spacer{ flex:1; }
+.tb-progress-label{
+  font-family:var(--font-mono); font-size:12px; color:var(--ink-faint);
+  font-variant-numeric:tabular-nums;
+}
+
+.progress-track{ height:3px; background:var(--line-soft); position:relative; }
+.progress-fill{ position:absolute; inset-inline-start:0; top:0; bottom:0; width:0%;
+  background:linear-gradient(90deg, var(--blue), var(--green));
+  transition:width .35s ease; }
+
+/* ---------- slide viewport ---------- */
+.viewport{ position:relative; flex:1; overflow:hidden; }
+.slide{
+  position:absolute; inset:0;
+  display:flex; flex-direction:column;
+  padding:clamp(26px,4.4vh,52px) clamp(34px,6vw,76px);
+  opacity:0; transform:translateY(14px) scale(.99);
+  pointer-events:none;
+  transition:opacity .38s ease, transform .38s ease;
+  overflow-y:auto;
+  direction:rtl;
+}
+.slide.active{ opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
+@media (prefers-reduced-motion: reduce){
+  .slide{ transition:opacity .01s linear; transform:none; }
+}
+
+.eyebrow{
+  font-family:var(--font-mono); font-size:13px; letter-spacing:.02em;
+  color:var(--blue); display:flex; align-items:center; gap:8px; margin-bottom:14px;
+  direction:ltr; justify-content:flex-end;
+}
+.eyebrow .dot{ width:6px; height:6px; border-radius:50%; background:var(--blue); }
+
+h1.slide-title{
+  font-family:var(--font-display); font-weight:700;
+  font-size:clamp(28px,4.4vh,44px); line-height:1.15; margin:0 0 .4em;
+  text-wrap:balance; color:var(--ink);
+}
+h1.slide-title .accent{ color:var(--gold); }
+h2.slide-sub{
+  font-family:var(--font-body); font-weight:500; color:var(--ink-dim);
+  font-size:clamp(15px,2.2vh,19px); margin:0 0 1.1em; line-height:1.6; max-width:62ch;
+}
+
+.body-text{ font-size:clamp(15px,2.1vh,18px); line-height:1.75; color:var(--ink); max-width:70ch; }
+.body-text + .body-text{ margin-top:.8em; }
+
+/* ---------- title slide ---------- */
+.slide.title-slide{ align-items:center; justify-content:center; text-align:center; }
+.title-slide .kicker{
+  font-family:var(--font-mono); color:var(--green); font-size:14px;
+  border:1px solid var(--green-dim); background:rgba(111,227,180,.08);
+  padding:6px 16px; border-radius:999px; margin-bottom:26px; direction:ltr;
+}
+.title-slide h1{
+  font-family:var(--font-display); font-weight:800;
+  font-size:clamp(38px,7vh,68px); line-height:1.08; margin:0 0 .3em; text-wrap:balance;
+}
+.title-slide .py-mark{ color:var(--blue); }
+.title-slide .py-mark2{ color:var(--gold); }
+.title-slide p{ color:var(--ink-dim); font-size:clamp(16px,2.4vh,21px); max-width:56ch; margin:0 auto; line-height:1.6; }
+.prompt-line{
+  margin-top:36px; font-family:var(--font-mono); color:var(--ink-faint); font-size:15px; direction:ltr;
+}
+.prompt-line .caret{ display:inline-block; width:9px; height:1.1em; background:var(--green); margin-inline-start:4px; vertical-align:-2px;
+  animation:blink 1.1s steps(1) infinite; }
+@keyframes blink{ 50%{ opacity:0; } }
+@media (prefers-reduced-motion: reduce){ .prompt-line .caret{ animation:none; } }
+
+/* ---------- icon grid (industries etc.) ---------- */
+.grid{ display:grid; gap:16px; margin-top:8px; }
+.grid.cols-4{ grid-template-columns:repeat(4,1fr); }
+.grid.cols-3{ grid-template-columns:repeat(3,1fr); }
+.grid.cols-2{ grid-template-columns:repeat(2,1fr); }
+.card{
+  background:var(--bg-titlebar); border:1px solid var(--line); border-radius:14px;
+  padding:16px 16px 15px; display:flex; flex-direction:column; gap:8px;
+}
+.card .icon{ width:34px; height:34px; }
+.card h3{ margin:2px 0 0; font-family:var(--font-display); font-size:15.5px; font-weight:700; color:var(--ink); }
+.card p{ margin:0; font-size:13.5px; line-height:1.55; color:var(--ink-dim); }
+.card.blue .icon{ color:var(--blue); } .card.blue{ border-color:var(--blue-dim); }
+.card.gold .icon{ color:var(--gold); } .card.gold{ border-color:var(--gold-dim); }
+.card.coral .icon{ color:var(--coral); } .card.coral{ border-color:var(--coral-dim); }
+.card.green .icon{ color:var(--green); } .card.green{ border-color:var(--green-dim); }
+.card.violet .icon{ color:var(--violet); } .card.violet{ border-color:var(--violet-dim); }
+
+/* ---------- badge chips (companies, tags) ---------- */
+.chiprow{ display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; direction:rtl; }
+.chip{
+  font-family:var(--font-mono); font-size:13.5px; color:var(--ink);
+  background:var(--bg-titlebar); border:1px solid var(--line);
+  padding:7px 14px; border-radius:999px; direction:ltr;
+}
+
+/* ---------- two-col layout ---------- */
+.split{ display:grid; grid-template-columns:1.1fr .9fr; gap:34px; align-items:center; flex:1; }
+.split .art{ display:flex; align-items:center; justify-content:center; }
+
+/* ---------- code block ---------- */
+.codewrap{
+  background:#0c1019; border:1px solid var(--line); border-radius:12px; overflow:hidden;
+  direction:ltr; text-align:left;
+}
+.codewrap .chead{
+  display:flex; align-items:center; gap:8px; padding:8px 12px; background:var(--bg-titlebar);
+  border-bottom:1px solid var(--line); font-family:var(--font-mono); font-size:11.5px; color:var(--ink-faint);
+}
+.codewrap .chead b{ color:var(--green); font-weight:600; }
+pre.code{
+  margin:0; padding:16px 18px; font-family:var(--font-mono); font-size:14.5px; line-height:1.7;
+  overflow-x:auto; direction:ltr; text-align:left; white-space:pre;
+}
+.tok-kw{ color:var(--violet); font-weight:600; }
+.tok-str{ color:var(--gold); }
+.tok-num{ color:var(--coral); }
+.tok-com{ color:var(--ink-faint); font-style:italic; }
+.tok-fn{ color:var(--blue); }
+.tok-var{ color:#9fd3ff; }
+.tok-punc{ color:var(--ink-dim); }
+
+.outwrap{ background:#0a0d14; border:1px solid var(--line); border-radius:12px; overflow:hidden; direction:ltr; text-align:left; }
+.outwrap .ohead{ padding:8px 12px; background:var(--bg-titlebar); border-bottom:1px solid var(--line);
+  font-family:var(--font-mono); font-size:11.5px; color:var(--ink-faint); }
+.outwrap .obody{ padding:14px 18px; font-family:var(--font-mono); font-size:14.5px; color:var(--green); white-space:pre-wrap; line-height:1.7; }
+
+/* ---------- exercise list ---------- */
+.exlist{ list-style:none; margin:10px 0 0; padding:0; display:flex; flex-direction:column; gap:12px; }
+.exlist li{
+  display:flex; gap:14px; align-items:flex-start;
+  background:var(--bg-titlebar); border:1px solid var(--line); border-radius:12px; padding:13px 16px;
+}
+.exnum{
+  flex:none; width:26px; height:26px; border-radius:8px; background:var(--bg-panel-2);
+  border:1px solid var(--line); display:flex; align-items:center; justify-content:center;
+  font-family:var(--font-mono); font-size:13px; color:var(--ink-dim); font-variant-numeric:tabular-nums;
+}
+.exbody{ flex:1; font-size:15px; line-height:1.6; }
+.exbody code{ font-family:var(--font-mono); background:var(--bg-panel-2); padding:1px 6px; border-radius:5px; color:var(--gold); direction:ltr; unicode-bidi:isolate; display:inline-block; }
+.tag{
+  flex:none; font-family:var(--font-mono); font-size:11px; padding:3px 9px; border-radius:999px;
+  height:fit-content; direction:ltr;
+}
+.tag.easy{ background:var(--green-dim); color:var(--green); }
+.tag.med{ background:var(--gold-dim); color:var(--gold); }
+.tag.hard{ background:var(--coral-dim); color:var(--coral); }
+
+/* ---------- callouts ---------- */
+.callout{ display:flex; gap:12px; align-items:flex-start; padding:14px 16px; border-radius:12px; margin-top:14px; }
+.callout .icon{ width:22px; height:22px; flex:none; margin-top:2px; }
+.callout p{ margin:0; font-size:14.5px; line-height:1.6; }
+.callout.warn{ background:rgba(255,122,122,.08); border:1px solid var(--coral-dim); }
+.callout.warn .icon{ color:var(--coral); }
+.callout.tip{ background:rgba(111,227,180,.08); border:1px solid var(--green-dim); }
+.callout.tip .icon{ color:var(--green); }
+
+ul.plain, ol.plain{ margin:10px 0 0; padding-inline-start:1.3em; display:flex; flex-direction:column; gap:9px; }
+ul.plain li, ol.plain li{ font-size:15.5px; line-height:1.65; }
+ul.plain li::marker{ color:var(--blue); }
+strong.hl{ color:var(--gold); font-weight:700; }
+strong.hl2{ color:var(--blue); font-weight:700; }
+
+/* ---------- roadmap timeline ---------- */
+.roadmap{ display:flex; flex-direction:column; gap:10px; margin-top:10px; }
+.rgroup{ display:flex; gap:14px; align-items:stretch; }
+.rgroup .rlabel{
+  flex:none; width:118px; display:flex; align-items:center; justify-content:center; text-align:center;
+  font-family:var(--font-display); font-weight:700; font-size:13.5px; border-radius:10px; padding:10px 6px;
+}
+.rgroup .ritems{ flex:1; display:flex; flex-wrap:wrap; gap:8px; align-content:center; }
+.rchip{ background:var(--bg-titlebar); border:1px solid var(--line); border-radius:8px; padding:7px 12px; font-size:13px; color:var(--ink-dim); }
+.rgroup.p1 .rlabel{ background:var(--blue-dim); color:var(--blue); }
+.rgroup.p2 .rlabel{ background:var(--gold-dim); color:var(--gold); }
+.rgroup.p3 .rlabel{ background:var(--violet-dim); color:var(--violet); }
+.rgroup.p4 .rlabel{ background:var(--green-dim); color:var(--green); }
+
+/* ---------- controls ---------- */
+.controls{
+  position:absolute; bottom:16px; inset-inline-end:16px; display:flex; gap:8px; z-index:5;
+  direction:ltr;
+}
+.ctrl-btn{
+  width:40px; height:40px; border-radius:10px; border:1px solid var(--line);
+  background:var(--bg-titlebar); color:var(--ink-dim); display:flex; align-items:center; justify-content:center;
+  cursor:pointer; transition:background .15s, color .15s, border-color .15s;
+}
+.ctrl-btn:hover{ background:var(--bg-panel-2); color:var(--ink); border-color:var(--blue-dim); }
+.ctrl-btn:focus-visible{ outline:2px solid var(--blue); outline-offset:2px; }
+.ctrl-btn svg{ width:18px; height:18px; }
+
+.dots-nav{ position:absolute; bottom:20px; inset-inline-start:20px; display:flex; gap:6px; z-index:5; direction:ltr; }
+.dots-nav button{
+  width:7px; height:7px; border-radius:50%; border:none; background:var(--line); cursor:pointer; padding:0;
+}
+.dots-nav button.on{ background:var(--blue); width:20px; border-radius:4px; }
+
+.hint{ position:absolute; bottom:18px; left:50%; transform:translateX(-50%); font-family:var(--font-mono);
+  font-size:11.5px; color:var(--ink-faint); z-index:4; }
+
+@media (max-width:760px){
+  .split{ grid-template-columns:1fr; }
+  .grid.cols-4{ grid-template-columns:repeat(2,1fr); }
+  .grid.cols-3{ grid-template-columns:repeat(2,1fr); }
+}
+</style>
+
+<div class="stage">
+  <div class="deck" id="deck">
+    <div class="titlebar">
+      <div class="tb-dots"><span></span><span></span><span></span></div>
+      <div class="tb-tab"><b>py</b>_course — <span id="tb-name">00_intro.py</span></div>
+      <div class="tb-spacer"></div>
+      <div class="tb-progress-label"><span id="pg-cur">1</span> / <span id="pg-total">1</span></div>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="viewport" id="viewport"></div>
+    <div class="dots-nav" id="dotsNav"></div>
+    <div class="controls">
+      <button class="ctrl-btn" id="btnFs" title="מסך מלא" aria-label="מסך מלא">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4M20 15v4a1 1 0 0 1-1 1h-4"/></svg>
+      </button>
+      <button class="ctrl-btn" id="btnPrev" title="הקודם" aria-label="הקודם">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <button class="ctrl-btn" id="btnNext" title="הבא" aria-label="הבא">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<svg width="0" height="0" style="position:absolute">
+<defs>
+<symbol id="ic-brain" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M9 4a3 3 0 0 0-3 3v.3A3 3 0 0 0 4 10v1a3 3 0 0 0 1 2.2V15a3 3 0 0 0 3 3h1v2M9 4a3 3 0 0 1 3 3v13M9 4h1M4 10h2M4.2 13.5H7"/>
+  <path d="M15 4a3 3 0 0 1 3 3v.3a3 3 0 0 1 2 2.7v1a3 3 0 0 1-1 2.2V15a3 3 0 0 1-3 3h-1"/>
+  <path d="M15 4a3 3 0 0 0-3 3M18 10h2M19.8 13.5H17"/>
+</symbol>
+<symbol id="ic-terminal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/>
+</symbol>
+<symbol id="ic-cpu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9" y="9" width="6" height="6" rx="1"/>
+  <path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/>
+</symbol>
+<symbol id="ic-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.7 2.6 4 5.7 4 9s-1.3 6.4-4 9c-2.7-2.6-4-5.7-4-9s1.3-6.4 4-9Z"/>
+</symbol>
+<symbol id="ic-robot" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="5" y="9" width="14" height="10" rx="2"/><circle cx="9.5" cy="14" r="1.2" fill="currentColor" stroke="none"/><circle cx="14.5" cy="14" r="1.2" fill="currentColor" stroke="none"/>
+  <path d="M12 9V6M9 6h6M4 13H2M22 13h-2"/>
+</symbol>
+<symbol id="ic-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M4 20V10M10 20V4M16 20v-7M4 20h16"/>
+</symbol>
+<symbol id="ic-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12 3l7 3v6c0 4.5-3 7.7-7 9-4-1.3-7-4.5-7-9V6l7-3Z"/><path d="M9 12l2 2 4-4"/>
+</symbol>
+<symbol id="ic-network" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="4.5" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/>
+  <path d="M12 6.5v4M12 10.5 6 16M12 10.5l6 5.5"/>
+</symbol>
+<symbol id="ic-rocket" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12 2c3 1.5 5 5 5 9 0 2-1 4-2 5l-3 2-3-2c-1-1-2-3-2-5 0-4 2-7.5 5-9Z"/><circle cx="12" cy="9" r="1.6"/>
+  <path d="M9 16l-2 4M15 16l2 4M9 20h6"/>
+</symbol>
+<symbol id="ic-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="12" r="3.2"/><path d="M12 3v2.4M12 18.6V21M21 12h-2.4M5.4 12H3M18 6l-1.7 1.7M7.7 16.3 6 18M18 18l-1.7-1.7M7.7 7.7 6 6"/>
+</symbol>
+<symbol id="ic-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5v-15Z"/><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20"/>
+</symbol>
+<symbol id="ic-gamepad" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M6 9h12l2 7a2 2 0 0 1-3.5 1.8L15 16H9l-1.5 1.8A2 2 0 0 1 4 16l2-7Z"/><path d="M8 12h2M9 11v2M16 11.5h.01M18 13h.01"/>
+</symbol>
+<symbol id="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M20 6 9 17l-5-5"/>
+</symbol>
+<symbol id="ic-warn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12 3 2 20h20L12 3Z"/><path d="M12 9v5M12 17h.01"/>
+</symbol>
+<symbol id="ic-bulb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M9 18h6M10 21h4M7 9a5 5 0 1 1 8.7 3.4c-.8.9-1.7 1.7-1.7 3.1v.5H10v-.5c0-1.4-.9-2.2-1.7-3.1A5 5 0 0 1 7 9Z"/>
+</symbol>
+<symbol id="ic-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/>
+</symbol>
+</defs>
+</svg>
+
+<script>
+/* ============================================================
+   SLIDE DATA — deck 0: מבוא לתכנות ול-Python
+   ============================================================ */
+const FILE_NAME = "00_intro.py";
+const SLIDES = [
+
+{ type:"title", kicker:"מכינה תקשוב &middot; שיעור פתיחה", title:'עולם <span class="py-mark">ה</span><span class="py-mark2">תכנות</span>',
+  sub:"מה זה בכלל תכנות, ולמה בוחרים ללמוד דווקא Python?",
+  prompt:'>>> import future <span class="caret"></span>' },
+
+{ type:"content", eyebrow:"01 · המחשב", title:"מה זה בכלל <span class='accent'>מחשב</span>?",
+  body:`
+  <div class="split">
+    <div>
+      <p class="body-text">דמיינו טבח רובוטי מושלם: הוא <strong class="hl2">מהיר להפליא</strong>, אף פעם לא מתעייף, ולא טועה בחישוב.</p>
+      <p class="body-text">אבל יש לו בעיה אחת — הוא <strong class="hl">מבצע בדיוק את מה שכתוב במתכון</strong>, מילה במילה. אם המתכון לא ברור, או חסר בו שלב — הוא ייתקע, או יעשה משהו מוזר.</p>
+      <p class="body-text">מחשב עובד בדיוק ככה. הוא לא "מבין" כוונות, הוא רק מבצע <strong class="hl2">הוראות מדויקות</strong>, אחת אחרי השנייה.</p>
+    </div>
+    <div class="art"><svg viewBox="0 0 200 200" width="230" height="230">
+      <rect x="30" y="40" width="140" height="100" rx="14" fill="none" stroke="#55c6f2" stroke-width="3"/>
+      <rect x="55" y="65" width="90" height="50" rx="6" fill="#2d4a63" stroke="#55c6f2" stroke-width="2"/>
+      <circle cx="75" cy="90" r="5" fill="#55c6f2"/><circle cx="125" cy="90" r="5" fill="#55c6f2"/>
+      <path d="M100 140v20M75 160h50" stroke="#55c6f2" stroke-width="3" stroke-linecap="round"/>
+      <path d="M15 90h15M170 90h15" stroke="#ffd166" stroke-width="3" stroke-linecap="round"/>
+    </svg></div>
+  </div>` },
+
+{ type:"content", eyebrow:"02 · חומרה ותוכנה", title:"מחשב זה <span class='accent'>חומרה</span> + <span class='accent'>תוכנה</span>",
+  body:`
+  <p class="body-text">כל מחשב בנוי משני חלקים שונים לגמרי, ששני אחד בלי השני חסר תועלת:</p>
+  <div class="grid cols-2" style="margin-top:10px">
+    <div class="card blue"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-cpu"/></svg><h3>חומרה (Hardware)</h3><p>החלקים הפיזיים שאפשר לגעת בהם — מעבד, זיכרון, מסך, מקלדת. בלי הוראות, זו רק ערימת רכיבים חסרת חיים.</p></div>
+    <div class="card gold"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-terminal"/></svg><h3>תוכנה (Software)</h3><p>ההוראות שגורמות לחומרה לעשות משהו שימושי — כל תוכנית, אפליקציה ומשחק הם תוכנה.</p></div>
+  </div>
+  <p class="body-text" style="margin-top:16px">בקורס הזה נתמקד ב<strong class="hl">כתיבת תוכנה</strong> — וספציפית, נכתוב אותה בשפת <strong class="hl2">Python</strong>.</p>` },
+
+{ type:"content", eyebrow:"03 · שפת תכנות", title:"אז מה זו <span class='accent'>שפת תכנות</span>?",
+  body:`
+  <p class="body-text">שפת תכנות היא ה<strong class="hl2">שפה המשותפת</strong> בינינו לבין המחשב — דרך לכתוב הוראות שהמחשב יכול להבין ולבצע, בלי אי־הבנות.</p>
+  <div class="grid cols-3" style="margin-top:22px">
+    <div class="card blue"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-bulb"/></svg><h3>אתם חושבים על רעיון</h3><p>"אני רוצה תוכנית שמחשבת ממוצע ציונים"</p></div>
+    <div class="card gold"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-terminal"/></svg><h3>כותבים קוד ב-Python</h3><p>הופכים את הרעיון להוראות מדויקות, שורה אחר שורה</p></div>
+    <div class="card violet"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-cpu"/></svg><h3>המחשב מבצע</h3><p>המעבד מריץ את ההוראות ומחזיר תוצאה</p></div>
+  </div>` },
+
+{ type:"content", eyebrow:"04 · שפת מכונה", title:"מתחת לכל שורת קוד — <span class='accent'>אפסים ואחדים</span>",
+  body:`
+  <p class="body-text">בסופו של דבר, המעבד "מבין" רק חשמל דולק וכבוי — כלומר <strong class="hl2">0 ו-1</strong>. לכתוב תוכנית שלמה ככה זה כמעט בלתי אפשרי לבני אדם.</p>
+  <p class="body-text">לכן פותחו שכבות שמתווכות בינינו לבין השפה הזו — כל שכבה קרובה יותר לאיך שבני אדם חושבים:</p>
+  <div class="grid cols-3" style="margin-top:10px">
+    <div class="card coral"><h3 style="font-family:var(--font-mono);font-size:14px">01001000 01101001</h3><p>שפת מכונה — מה שהמעבד מריץ בפועל</p></div>
+    <div class="card gold"><h3 style="font-family:var(--font-mono);font-size:14px">MOV AX, 1</h3><p>שפת אסמבלי — קצת יותר קריאה לאדם, עדיין מסובכת</p></div>
+    <div class="card blue"><h3 style="font-family:var(--font-mono);font-size:14px">print("Hi")</h3><p>Python — שפה עילית, קרובה כמעט לשפה אנושית</p></div>
+  </div>
+  <p class="body-text" style="margin-top:16px">ככל ששפה "עילית" יותר — כך היא <strong class="hl">קלה יותר ללמידה</strong>, אבל צריך מי שיתרגם אותה בשבילנו לשפת המכונה. על זה נדבר עוד רגע.</p>` },
+
+{ type:"content", eyebrow:"05 · חשיבה תכנותית", title:"תכנות זה לא קסם — זו <span class='accent'>פירוק לבעיה קטנה</span>",
+  body:`
+  <p class="body-text">לפני שכותבים שורת קוד אחת, מתכנתים עושים דבר אחד: <strong class="hl2">מפרקים משימה גדולה לצעדים קטנים וברורים</strong>. זה נקרא <strong class="hl">חשיבה אלגוריתמית</strong> — וזו לא מיומנות תכנותית בלבד, זו מיומנות חשיבה.</p>
+  <p class="body-text">דוגמה יומיומית — "להכין כריך" נשמע פשוט, אבל בפועל הוא סדרת צעדים מדויקת:</p>
+  <div class="grid cols-4" style="margin-top:10px">
+    <div class="card blue"><h3>1. לקחת</h3><p>שתי פרוסות לחם</p></div>
+    <div class="card gold"><h3>2. למרוח</h3><p>חמאה על פרוסה אחת</p></div>
+    <div class="card violet"><h3>3. להוסיף</h3><p>מילוי לבחירה</p></div>
+    <div class="card green"><h3>4. לסגור</h3><p>עם הפרוסה השנייה</p></div>
+  </div>
+  <p class="body-text" style="margin-top:16px">תוכנית מחשב היא בדיוק זה — <strong class="hl2">רשימת צעדים מדויקת</strong>, רק שהמבצע הוא המחשב.</p>` },
+
+{ type:"exercises", eyebrow:"06 · תרגול חשיבה אלגוריתמית", title:"נסו <span class='accent'>בעצמכם</span>: פרקו משימה לצעדים",
+  desc:"בחרו אחת מהמשימות היומיומיות הבאות, ורשמו על דף את כל הצעדים המדויקים שהיא דורשת — כאילו אתם מסבירים לרובוט שלא מבין שום דבר מעבר למה שכתוב לו:",
+  items:[
+    {tag:"easy", text:"להכין כוס שוקו חם."},
+    {tag:"easy", text:"לקשור שרוכי נעליים."},
+    {tag:"easy", text:"לחצות כביש בבטחה, במעבר חצייה עם רמזור."},
+    {tag:"med", text:"להחליף מנורה שרופה בבית — כולל בטיחות."},
+  ]},
+
+{ type:"content", eyebrow:"07 · כל כך הרבה שפות", title:"יש <span class='accent'>מאות</span> שפות תכנות — למה?",
+  body:`
+  <p class="body-text">בדיוק כמו שיש כלי עבודה שונים למטרות שונות (פטיש למסמרים, מברג לברגים) — לכל שפת תכנות יש חוזקות אחרות:</p>
+  <ul class="plain">
+    <li><code style="font-family:var(--font-mono);color:var(--ink-dim)">C</code> — קרובה מאוד לחומרה, מהירה מאוד, משמשת במערכות הפעלה</li>
+    <li><code style="font-family:var(--font-mono);color:var(--ink-dim)">JavaScript</code> — רצה בדפדפן, מפעילה אתרים אינטראקטיביים</li>
+    <li><code style="font-family:var(--font-mono);color:var(--ink-dim)">Java</code> — נפוצה בעולם הארגוני ובאפליקציות אנדרואיד</li>
+    <li><strong class="hl">Python</strong> — פשוטה, קריאה, וכמעט אין תחום שהיא <em>לא</em> נמצאת בו</li>
+  </ul>
+  <p class="body-text" style="margin-top:16px">בקורס הזה — אנחנו מתחילים עם <strong class="hl">Python</strong>. בואו נכיר אותה לעומק.</p>` },
+
+{ type:"content", eyebrow:"08 · מהדר מול מתורגמן", title:"מי <span class='accent'>מתרגם</span> את הקוד שלנו?",
+  body:`
+  <p class="body-text">אמרנו שהמעבד מבין רק 0 ו-1. אז מי הופך את <code style="font-family:var(--font-mono);color:var(--gold)">print("שלום")</code> לפעולה שהמעבד יכול לבצע? יש שתי גישות עיקריות:</p>
+  <div class="grid cols-2" style="margin-top:10px">
+    <div class="card violet"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-gear"/></svg><h3>שפה מהודרת (Compiled)</h3><p>כל התוכנית מתורגמת <strong>מראש</strong>, בבת אחת, לקובץ הרצה נפרד. כך עובדת למשל C.</p></div>
+    <div class="card blue"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-terminal"/></svg><h3>שפה מתורגמת (Interpreted)</h3><p>כל שורה מתורגמת ומורצת <strong>מיד</strong>, אחת אחרי השנייה, בלי שלב "בנייה" נפרד. כך עובדת Python.</p></div>
+  </div>
+  <div class="callout tip" style="margin-top:18px">
+    <svg class="icon" viewBox="0 0 24 24"><use href="#ic-bulb"/></svg>
+    <p>זו אחת הסיבות ש-Python מרגישה כל כך "מיידית" — כותבים שורה, מריצים, ורואים תוצאה תוך שנייה, בלי המתנה לתהליך בנייה ארוך.</p>
+  </div>` },
+
+{ type:"content", eyebrow:"09 · ציר זמן", title:"מתי <span class='accent'>נולדה</span> Python?",
+  body:`
+  <div class="roadmap">
+    <div class="rgroup p1"><div class="rlabel">1989</div><div class="ritems">
+      <span class="rchip">המתכנת ההולנדי <strong style="color:var(--ink)">חידו ואן רוסום</strong> מתחיל לכתוב את Python בזמנו הפנוי, בחופשת חג המולד ב-CWI באמסטרדם</span></div></div>
+    <div class="rgroup p2"><div class="rlabel">1991<br/>(פברואר)</div><div class="ritems">
+      <span class="rchip">הגרסה הראשונה, <strong style="color:var(--ink)">Python 0.9.0</strong>, יוצאת לעולם ומתפרסמת באינטרנט</span></div></div>
+    <div class="rgroup p3"><div class="rlabel">2000–2008</div><div class="ritems">
+      <span class="rchip"><strong style="color:var(--ink)">Python 2</strong> (2000) ואז <strong style="color:var(--ink)">Python 3</strong> (2008) — שדרוגים מהותיים שהפכו את השפה לחזקה ומהירה יותר</span></div></div>
+    <div class="rgroup p4"><div class="rlabel">היום</div><div class="ritems">
+      <span class="rchip">Python היא אחת <strong style="color:var(--ink)">משתי שפות התכנות הפופולריות ביותר בעולם</strong>, עם קהילה של מיליוני מפתחים</span></div></div>
+  </div>
+  <div class="callout tip" style="margin-top:22px">
+    <svg class="icon" viewBox="0 0 24 24"><use href="#ic-bulb"/></svg>
+    <p>עובדה משעשעת: השם <strong>לא</strong> קשור לנחש בכלל — ואן רוסום קרא לשפה על שם להקת הקומדיה הבריטית האהובה עליו, <strong>Monty Python</strong>.</p>
+  </div>` },
+
+{ type:"content", eyebrow:"10 · מי מנהל את Python היום", title:"<span class='accent'>קוד פתוח</span> — לא בבעלות חברה אחת",
+  body:`
+  <p class="body-text">אף חברה לא "בבעלותה" את Python. מאז 2001 השפה מנוהלת על ידי <strong class="hl2">Python Software Foundation</strong> — עמותה ללא מטרות רווח.</p>
+  <p class="body-text">כל שינוי בשפה עצמה עובר תהליך פתוח וציבורי שנקרא <strong class="hl">PEP</strong> (Python Enhancement Proposal) — כל אחד בקהילה יכול להציע רעיון, והקהילה דנה בו יחד.</p>
+  <p class="body-text">חידו ואן רוסום, יוצר השפה, ויתר מרצונו על תפקיד "הדיקטטור השפוי לכל החיים" שלו ב-2018 — היום החלטות מתקבלות על ידי מועצה נבחרת.</p>
+  <div class="callout tip" style="margin-top:14px">
+    <svg class="icon" viewBox="0 0 24 24"><use href="#ic-bulb"/></svg>
+    <p>אחד ה-PEP-ים המפורסמים ביותר הוא <strong>PEP 8</strong> — מדריך הסגנון הרשמי לכתיבת קוד Python נקי. ניגע בו בהמשך הקורס.</p>
+  </div>` },
+
+{ type:"code", eyebrow:"11 · פייתון נראית כמעט כמו אנגלית", title:"קוד שאפשר <span class='accent'>פשוט לקרוא</span>",
+  desc:"זו אחת הסיבות המרכזיות שמתחילים אוהבים Python — אפשר כמעט לנחש מה קוד עושה, רק לפי הקריאה שלו:",
+  code:[
+    {t:"tok-kw",c:"if"},{t:"",c:" age "},{t:"tok-punc",c:">"},{t:"",c:" "},{t:"tok-num",c:"18"},{t:"tok-punc",c:":"},{t:"",c:"\n    "},
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"("},{t:"tok-str",c:'"את/ה יכול/ה להצביע!"'},{t:"tok-punc",c:")"},{t:"",c:"\n"},
+    {t:"tok-kw",c:"else"},{t:"tok-punc",c:":"},{t:"",c:"\n    "},
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"("},{t:"tok-str",c:'"עוד לא הגיע הזמן"'},{t:"tok-punc",c:")"},
+  ],
+  outLabel:"בעברית פשוטה, זה בדיוק אומר:", outText:"אם הגיל גדול מ-18 → תדפיס \"את/ה יכול/ה להצביע!\"\nאחרת → תדפיס \"עוד לא הגיע הזמן\"" },
+
+{ type:"code", eyebrow:"12 · עוד דוגמה לקריאות", title:"לולאה שכמעט <span class='accent'>מדברת אנגלית</span>",
+  desc:"גם קוד שרץ על רשימה שלמה של פריטים, אחד אחרי השני, נשאר קריא להפליא ב-Python:",
+  code:[
+    {t:"tok-kw",c:"for"},{t:"",c:" "},{t:"tok-var",c:"name"},{t:"",c:" "},{t:"tok-kw",c:"in"},{t:"",c:" "},
+    {t:"tok-punc",c:"["},{t:"tok-str",c:'"דנה"'},{t:"tok-punc",c:", "},{t:"tok-str",c:'"נועה"'},{t:"tok-punc",c:", "},{t:"tok-str",c:'"עומר"'},{t:"tok-punc",c:"]:"},{t:"",c:"\n    "},
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"("},{t:"tok-str",c:'"שלום,"'},{t:"tok-punc",c:", "},{t:"tok-var",c:"name"},{t:"tok-punc",c:")"},
+  ],
+  outLabel:"פלט:", outText:"שלום, דנה\nשלום, נועה\nשלום, עומר" },
+
+{ type:"content", eyebrow:"13 · אותה משימה, שתי שפות", title:"למה <span class='accent'>פחות שורות</span> זה יתרון",
+  body:`
+  <p class="body-text">המשימה: להדפיס "שלום, עולם!" על המסך. באות מטרה, בשפות שונות — בואו נשווה:</p>
+  <div class="split">
+    <div class="codewrap">
+      <div class="chead">שפה מוכוונת-פרטים (למשל Java)</div>
+      <pre class="code"><span class="tok-kw">public class</span> <span class="tok-fn">Main</span> <span class="tok-punc">{</span>
+    <span class="tok-kw">public static void</span> <span class="tok-fn">main</span><span class="tok-punc">(</span><span class="tok-var">String[] args</span><span class="tok-punc">) {</span>
+        <span class="tok-var">System.out</span><span class="tok-punc">.</span><span class="tok-fn">println</span><span class="tok-punc">(</span><span class="tok-str">"שלום, עולם!"</span><span class="tok-punc">);</span>
+    <span class="tok-punc">}</span>
+<span class="tok-punc">}</span></pre>
+    </div>
+    <div class="codewrap">
+      <div class="chead">Python</div>
+      <pre class="code"><span class="tok-fn">print</span><span class="tok-punc">(</span><span class="tok-str">"שלום, עולם!"</span><span class="tok-punc">)</span></pre>
+    </div>
+  </div>
+  <p class="body-text" style="margin-top:16px">אותה תוצאה בדיוק — אבל שורה <strong class="hl">אחת</strong> מול חמש. פחות קוד לכתוב = פחות מקומות לטעות, ופחות זמן עד שרואים תוצאה.</p>` },
+
+{ type:"content", eyebrow:"14 · עוד השוואה", title:"לולאה שסופרת: <span class='accent'>Java מול Python</span>",
+  body:`
+  <p class="body-text">המשימה: להדפיס את המספרים 1 עד 5. שוב, אותה תוצאה בדיוק — אבל כמות קוד שונה מאוד:</p>
+  <div class="split">
+    <div class="codewrap">
+      <div class="chead">Java</div>
+      <pre class="code"><span class="tok-kw">for</span> <span class="tok-punc">(</span><span class="tok-kw">int</span> <span class="tok-var">i</span> <span class="tok-punc">=</span> <span class="tok-num">1</span><span class="tok-punc">;</span> <span class="tok-var">i</span> <span class="tok-punc">&lt;=</span> <span class="tok-num">5</span><span class="tok-punc">;</span> <span class="tok-var">i</span><span class="tok-punc">++) {</span>
+    <span class="tok-var">System.out</span><span class="tok-punc">.</span><span class="tok-fn">println</span><span class="tok-punc">(</span><span class="tok-var">i</span><span class="tok-punc">);</span>
+<span class="tok-punc">}</span></pre>
+    </div>
+    <div class="codewrap">
+      <div class="chead">Python</div>
+      <pre class="code"><span class="tok-kw">for</span> <span class="tok-var">i</span> <span class="tok-kw">in</span> <span class="tok-fn">range</span><span class="tok-punc">(</span><span class="tok-num">1</span><span class="tok-punc">,</span> <span class="tok-num">6</span><span class="tok-punc">):</span>
+    <span class="tok-fn">print</span><span class="tok-punc">(</span><span class="tok-var">i</span><span class="tok-punc">)</span></pre>
+    </div>
+  </div>
+  <p class="body-text" style="margin-top:16px">שוב, שתי שורות מול חמש. ב-Python <strong class="hl">range(1, 6)</strong> יוצר בעצמה את הרשימה 1 עד 5 — נלמד עליה בהרחבה כשנגיע ללולאות.</p>` },
+
+{ type:"exercises", eyebrow:"15 · בדקו את עצמכם", title:"נחשו: <span class='accent'>איזו שפה</span> זו?",
+  desc:"בלי לגלול למעלה — תסתכלו על שני קטעי הקוד הבאים ותענו:",
+  items:[
+    {tag:"easy", text:"קטע א׳: <code>System.out.println(\"Hi\");</code> — איזו שפה זו לדעתכם, ומה הרמז שעזר לכם לזהות?"},
+    {tag:"easy", text:"קטע ב׳: <code>print(\"Hi\")</code> — איזו שפה זו לדעתכם, ומה הרמז שעזר לכם לזהות?"},
+    {tag:"med", text:"רשמו במשפט אחד: מה ההבדל העיקרי שראיתם עד עכשיו בין Python לשפות האחרות שהזכרנו?"},
+  ]},
+
+{ type:"content", eyebrow:"16 · למה היא כזו נפוצה", title:"למה Python <span class='accent'>נמצאת בכל מקום</span>?",
+  body:`
+  <p class="body-text">התכונות של Python לא רק נוחות ללומדים — הן גם הסיבה שחברות ענק בוחרות בה:</p>
+  <div class="grid cols-2">
+    <div class="card green"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-check"/></svg><h3>קלה ללמידה וקריאה</h3><p>קוד ברור = פחות באגים, ותחזוקה זולה יותר לחברות</p></div>
+    <div class="card blue"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-network"/></svg><h3>קהילה ענקית</h3><p>מיליוני מפתחים, המון תשובות מוכנות לכל בעיה</p></div>
+    <div class="card gold"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-folder"/></svg><h3>ספריות מוכנות בחינם</h3><p>כמעט לכל משימה כבר קיים כלי מוכן — פחות זמן פיתוח, פחות עלות</p></div>
+    <div class="card violet"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-globe"/></svg><h3>קוד פתוח וחינמי</h3><p>Google, Microsoft ו-Meta משקיעות בפיתוח הכלים שלה — בלי עלות רישוי</p></div>
+  </div>` },
+
+{ type:"content", eyebrow:"17 · ניידות", title:"אותו קוד, <span class='accent'>כל מערכת הפעלה</span>",
+  body:`
+  <p class="body-text">Python היא <strong class="hl2">חוצת-פלטפורמות</strong> (Cross-Platform) — אותו קובץ קוד רץ כמעט בלי שינוי בכל אחת מהמערכות המרכזיות:</p>
+  <div class="grid cols-3" style="margin-top:10px">
+    <div class="card blue"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-terminal"/></svg><h3>Windows</h3><p>המערכת הנפוצה ביותר בבתים ובמשרדים</p></div>
+    <div class="card violet"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-cpu"/></svg><h3>macOS</h3><p>מערכת ההפעלה של מחשבי Apple</p></div>
+    <div class="card green"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-globe"/></svg><h3>Linux</h3><p>נפוצה מאוד בשרתים ובעולם הרשתות והסייבר</p></div>
+  </div>
+  <p class="body-text" style="margin-top:16px">בשפות מהודרות רבות צריך "לבנות" גרסה נפרדת לכל מערכת הפעלה. ב-Python — כותבים <strong class="hl">פעם אחת</strong>, ומריצים כמעט בכל מקום.</p>` },
+
+{ type:"content", eyebrow:"18 · השאלה החשובה באמת", title:"למה כדאי ללמוד Python <span class='accent'>דווקא היום</span>?",
+  body:`
+  <div class="grid cols-2">
+    <div class="card coral"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-chart"/></svg><h3>ביקוש עצום בשוק העבודה</h3><p>Python נמצאת בין השפות המבוקשות והמשתלמות בעולם ההייטק — כמעט כל חברת טכנולוגיה מחפשת אנשים שיודעים אותה</p></div>
+    <div class="card violet"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-robot"/></svg><h3>שפת עידן הבינה המלאכותית</h3><p>כלי ה-AI המובילים בעולם נבנים ומופעלים בעזרת Python — מי שיודע Python, מבין את "מאחורי הקלעים" של ה-AI</p></div>
+    <div class="card blue"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-network"/></svg><h3>כישור אחד, המון דלתות</h3><p>לא נועלים את עצמכם לתחום אחד — זו קרש קפיצה לפיתוח, סייבר, רשתות ונתונים, בלי להתחייב מראש</p></div>
+    <div class="card green"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-bulb"/></svg><h3>רואים תוצאות מהר</h3><p>כבר אחרי כמה שיעורים תדעו לבנות תוכניות אמיתיות — וזה מה שגורם למוטיבציה להישאר גבוהה</p></div>
+  </div>` },
+
+{ type:"exercises", eyebrow:"19 · עצרו לרגע", title:"שאלות <span class='accent'>למחשבה</span>",
+  desc:"אין כאן תשובה נכונה אחת — פשוט תחשבו, ואם נוח לכם שתפו בכיתה:",
+  items:[
+    {tag:"easy", text:"מה הביא אתכם ללמוד תכנות דווקא עכשיו?"},
+    {tag:"easy", text:"איזה תחום מהעולם האמיתי שהזכרנו הכי סקרן אתכם?"},
+    {tag:"med", text:"אם הייתם יכולים לבנות תוכנית אחת שתחסוך לכם זמן בחיי היומיום — מה היא הייתה עושה?"},
+  ]},
+
+{ type:"content", eyebrow:"20 · שוברים מיתוסים", title:"<span class='accent'>מיתוסים</span> נפוצים על תכנות",
+  body:`
+  <div class="grid cols-3">
+    <div class="card coral"><h3>"אני לא מספיק טוב/ה במתמטיקה"</h3><p>רוב התכנות היומיומית היא היגיון ופתרון בעיות, לא משוואות. מתמטיקה מתקדמת נדרשת רק בתחומים ספציפיים.</p></div>
+    <div class="card violet"><h3>"צריך לזכור הכל בעל פה"</h3><p>גם מתכנתים מנוסים מחפשים כל הזמן תזכורות. הכלי החשוב באמת הוא לדעת <em>מה</em> לחפש.</p></div>
+    <div class="card gold"><h3>"רק גאונים מתכנתים"</h3><p>תכנות היא מיומנות נרכשת, כמו נגינה או נהיגה — משתפרים בתרגול, לא בכישרון מולד בלבד.</p></div>
+  </div>` },
+
+{ type:"content", eyebrow:"21 · עוד מיתוסים", title:"עוד <span class='accent'>מיתוסים</span> ששווה לשבור",
+  body:`
+  <div class="grid cols-3">
+    <div class="card coral"><h3>"אני צריך/ה מחשב חזק ויקר"</h3><p>Python קלה מאוד למחשב — כמעט כל לפטופ מהעשור האחרון מריץ אותה בקלות, בלי כרטיס מסך מיוחד או חומרה יקרה.</p></div>
+    <div class="card violet"><h3>"מאוחר מדי להתחיל בגיל שלי"</h3><p>אנשים מתחילים לתכנת בכל גיל. המיומנות נבנית עם תרגול, לא נעולה לגיל מסוים.</p></div>
+    <div class="card gold"><h3>"תכנות זה לבד מול מסך כל היום"</h3><p>הרבה מהעבודה בתעשייה היא שיתופית — עבודה בזוגות, סקירת קוד, ותרומה לפרויקטי קוד פתוח יחד עם אחרים.</p></div>
+  </div>` },
+
+{ type:"content", eyebrow:"22 · שימושים בעולם האמיתי", title:"איפה <span class='accent'>Python</span> באמת עובדת?",
+  body:`
+  <div class="grid cols-4">
+    <div class="card blue"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-globe"/></svg><h3>פיתוח אתרים</h3><p>Instagram, Spotify ו-Pinterest נבנו על Python</p></div>
+    <div class="card violet"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-robot"/></svg><h3>בינה מלאכותית</h3><p>כלי AI, זיהוי תמונה, וההמלצות של Netflix</p></div>
+    <div class="card gold"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-chart"/></svg><h3>ניתוח נתונים</h3><p>הופכים מידע גולמי לגרפים ותובנות</p></div>
+    <div class="card coral"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-shield"/></svg><h3>סייבר ואבטחה</h3><p>כלי בדיקות חדירה וזיהוי פרצות נכתבים ב-Python</p></div>
+    <div class="card green"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-network"/></svg><h3>אוטומציית רשתות</h3><p>מהנדסי רשת מגדירים מאות ראוטרים בבת אחת עם Python</p></div>
+    <div class="card blue"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-gamepad"/></svg><h3>משחקים</h3><p>פיתוח משחקים פשוטים ואוטומציה של משימות חוזרות</p></div>
+    <div class="card violet"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-rocket"/></svg><h3>חלל ומדע</h3><p>NASA משתמשת ב-Python למחקר ולניתוח נתוני טיסה</p></div>
+    <div class="card gold"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-gear"/></svg><h3>אוטומציה</h3><p>סקריפטים שחוסכים שעות של עבודה ידנית משעממת</p></div>
+  </div>` },
+
+{ type:"content", eyebrow:"23 · חשוב במיוחד למגמת תקשוב", title:"אתם כבר <span class='accent'>יודעים רשתות</span> — עכשיו תפעילו אותן",
+  body:`
+  <div class="split">
+    <div>
+      <p class="body-text">במגמת תקשוב אתם לומדים להגדיר נתבים ומתגים <strong class="hl2">אחד אחד</strong>, ידנית, בקונסולה.</p>
+      <p class="body-text">מהנדסי רשת אמיתיים משתמשים ב-Python כדי לכתוב <strong class="hl">תוכנית אחת</strong> שמגדירה מאות מכשירי רשת <strong class="hl">בו-זמנית</strong> — במקום להקליד את אותן פקודות שוב ושוב.</p>
+      <p class="body-text">זה נקרא <strong class="hl2">אוטומציית רשתות</strong> (Network Automation), ו-Python היא הכלי המרכזי שבו משתמשים לכך בתעשייה.</p>
+    </div>
+    <div class="art"><svg viewBox="0 0 220 200" width="240" height="220">
+      <rect x="70" y="10" width="80" height="34" rx="6" fill="#10151f" stroke="#ffd166" stroke-width="2"/>
+      <text x="110" y="32" text-anchor="middle" font-family="monospace" font-size="13" fill="#ffd166">.py</text>
+      <path d="M90 44v20M130 44v20" stroke="#ffd166" stroke-width="2"/>
+      <circle cx="40" cy="110" r="16" fill="none" stroke="#55c6f2" stroke-width="2.5"/>
+      <circle cx="110" cy="110" r="16" fill="none" stroke="#55c6f2" stroke-width="2.5"/>
+      <circle cx="180" cy="110" r="16" fill="none" stroke="#55c6f2" stroke-width="2.5"/>
+      <path d="M40 94V64M110 94V64M180 94V64" stroke="#5c6485" stroke-width="2" stroke-dasharray="3 4"/>
+      <path d="M90 44 L48 96M110 64V94M130 44 L172 96" stroke="#5c6485" stroke-width="2" stroke-dasharray="3 4"/>
+      <path d="M40 126v30M110 126v30M180 126v30" stroke="#2d4a63" stroke-width="2"/>
+    </svg></div>
+  </div>` },
+
+{ type:"code", eyebrow:"24 · דוגמה מהעולם שלכם", title:"כך <span class='accent'>נראית</span> אוטומציית רשת, ברעיון",
+  desc:"עדיין לא למדנו את התחביר המדויק — אבל שימו לב כמה קריא הרעיון כבר עכשיו, גם בלי הסבר:",
+  code:[
+    {t:"tok-var",c:"devices"},{t:"tok-punc",c:" = ["},{t:"tok-str",c:'"Router1"'},{t:"tok-punc",c:", "},{t:"tok-str",c:'"Switch1"'},{t:"tok-punc",c:", "},{t:"tok-str",c:'"Switch2"'},{t:"tok-punc",c:"]"},{t:"",c:"\n"},
+    {t:"tok-kw",c:"for"},{t:"",c:" "},{t:"tok-var",c:"device"},{t:"",c:" "},{t:"tok-kw",c:"in"},{t:"",c:" "},{t:"tok-var",c:"devices"},{t:"tok-punc",c:":"},{t:"",c:"\n    "},
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"("},{t:"tok-var",c:"device"},{t:"tok-punc",c:", "},{t:"tok-str",c:'"-> configured"'},{t:"tok-punc",c:")"},
+  ],
+  outLabel:"פלט (רעיון בלבד):", outText:"Router1 -> configured\nSwitch1 -> configured\nSwitch2 -> configured" },
+
+{ type:"content", eyebrow:"25 · מי משתמש ב-Python", title:"חברות ש<span class='accent'>בונות</span> על Python",
+  body:`
+  <p class="body-text">מהחברות הגדולות בעולם ועד סטארטאפים קטנים — Python היא חלק מהתשתית של:</p>
+  <div class="chiprow">
+    <span class="chip">Google</span><span class="chip">Netflix</span><span class="chip">Instagram</span>
+    <span class="chip">Spotify</span><span class="chip">NASA</span><span class="chip">Tesla</span>
+    <span class="chip">YouTube</span><span class="chip">Dropbox</span><span class="chip">Reddit</span>
+    <span class="chip">Pinterest</span><span class="chip">Uber</span><span class="chip">Amazon</span>
+  </div>
+  <div class="callout tip" style="margin-top:26px">
+    <svg class="icon" viewBox="0 0 24 24"><use href="#ic-bulb"/></svg>
+    <p>מעניין: תוכנה שרשמה לראשונה <strong>תמונה של חור שחור</strong> נכתבה בעזרת Python.</p>
+  </div>` },
+
+{ type:"content", eyebrow:"26 · מסלולי קריירה", title:"Python היא <span class='accent'>לא רק \"מתכנת/ת\"</span>",
+  body:`
+  <p class="body-text">מי שיודע/ת Python פותח/ת לעצמו/ה הרבה יותר ממקצוע אחד:</p>
+  <div class="grid cols-2">
+    <div class="card blue"><h3>מפתח/ת תוכנה</h3><p>בניית אתרים, אפליקציות ומערכות</p></div>
+    <div class="card gold"><h3>אנליסט/ית נתונים</h3><p>הפיכת מידע גולמי לתובנות עסקיות</p></div>
+    <div class="card violet"><h3>מהנדס/ת אוטומציה</h3><p>כתיבת סקריפטים שמייעלים תהליכי עבודה</p></div>
+    <div class="card coral"><h3>חוקר/ת אבטחת מידע</h3><p>איתור פרצות וכתיבת כלי הגנה</p></div>
+  </div>
+  <p class="body-text" style="margin-top:16px">אותה שפה בסיסית — <strong class="hl">כמה כיוונים אפשריים</strong> להתפתח אליהם בהמשך.</p>` },
+
+{ type:"content", eyebrow:"27 · שכר ותנאים", title:"כישור <span class='accent'>שמשתלם</span> ללמוד",
+  body:`
+  <div class="grid cols-2">
+    <div class="card green"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-chart"/></svg><h3>אחד הכישורים המבוקשים בעולם ההייטק</h3><p>סקרי שכר ותעסוקה שנתיים ממקמים שוב ושוב את Python בין השפות המבוקשות והמשתלמות ביותר בשוק העבודה הטכנולוגי.</p></div>
+    <div class="card blue"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-rocket"/></svg><h3>נקודת כניסה נגישה</h3><p>בזכות עקומת הלמידה המתונה שלה, Python היא לרוב השפה הראשונה שמומלצת למי שרוצה להיכנס לתעשייה — כולל למי שמגיע ממסלולים לא-אקדמיים.</p></div>
+  </div>
+  <div class="callout tip" style="margin-top:18px">
+    <svg class="icon" viewBox="0 0 24 24"><use href="#ic-bulb"/></svg>
+    <p>מספרים מדויקים משתנים משנה לשנה ולפי תפקיד — אבל המגמה עצמה יציבה כבר יותר מעשור: הביקוש ל-Python רק גדל.</p>
+  </div>` },
+
+{ type:"content", eyebrow:"28 · לאן זה מוביל", title:"מה <span class='accent'>תדעו לבנות</span> עד סוף הקורס?",
+  body:`
+  <p class="body-text">בכל שיעור נוסיף עוד "כלי" לארגז הכלים שלכם. בסוף הקורס תוכלו לבנות תוכניות אמיתיות, למשל:</p>
+  <ul class="plain">
+    <li>🧮 מחשבון שמבצע חישובים לפי מה שהמשתמש מקליד</li>
+    <li>🎲 משחק ניחושים אינטראקטיבי מול המחשב</li>
+    <li>📋 תוכנית שמארגנת וממיינת רשימות מידע</li>
+    <li>📁 כלי שקורא, מנתח ושומר קבצי טקסט אוטומטית</li>
+  </ul>
+  <p class="body-text" style="margin-top:14px">כל תוכנית כזו נבנית משילוב של כמה יסודות פשוטים — בדיוק אלה שנלמד, צעד אחר צעד.</p>` },
+
+{ type:"exercises", eyebrow:"29 · בדיקה עצמית", title:"שאלות <span class='accent'>חזרה</span> מהירות",
+  desc:"בלי לגלול אחורה — כמה מהן אתם זוכרים?",
+  items:[
+    {tag:"easy", text:"מה ההבדל בין חומרה לתוכנה?"},
+    {tag:"easy", text:"על שם מה נקראת Python?"},
+    {tag:"med", text:"מה ההבדל בין שפה מהודרת (Compiled) לשפה מתורגמת (Interpreted)?"},
+    {tag:"med", text:"תנו שתי דוגמאות לתחומים שבהם Python נמצאת בשימוש בעולם האמיתי."},
+  ]},
+
+{ type:"content", eyebrow:"30 · מפת הדרכים שלנו", title:"<span class='accent'>מבנה</span> הקורס",
+  body:`
+  <div class="roadmap">
+    <div class="rgroup p1"><div class="rlabel">פרק 1<br/>יסודות</div><div class="ritems">
+      <span class="rchip">משתנים</span><span class="rchip">קלט ופלט</span><span class="rchip">טיפוסי נתונים</span></div></div>
+    <div class="rgroup p2"><div class="rlabel">פרק 2<br/>לוגיקה</div><div class="ritems">
+      <span class="rchip">תנאים</span><span class="rchip">לולאות</span><span class="rchip">רשימות</span></div></div>
+    <div class="rgroup p3"><div class="rlabel">פרק 3<br/>מבנים</div><div class="ritems">
+      <span class="rchip">פונקציות</span><span class="rchip">Tuple</span><span class="rchip">Dictionaries</span></div></div>
+    <div class="rgroup p4"><div class="rlabel">פרק 4<br/>קבצים</div><div class="ritems">
+      <span class="rchip">כתיבה וקריאה</span><span class="rchip">חיפוש קבצים</span><span class="rchip">ניתוח מידע</span></div></div>
+  </div>
+  <p class="body-text" style="margin-top:20px">היום מתחילים ב<strong class="hl">יחידה 1</strong>: הכרות עם Python וכתיבת התוכנית הראשונה שלכם.</p>` },
+
+{ type:"content", eyebrow:"31 · לפני שמתחילים", title:"מה <span class='accent'>צריך</span> כדי להתחיל?",
+  body:`
+  <p class="body-text">בשונה מתחומים אחרים — כדי לתכנת ב-Python לא צריך ציוד יקר, ואפשר אפילו להתחיל <strong class="hl2">בלי להתקין שום דבר</strong>. בכיתה נעבוד באחת משתי דרכים:</p>
+  <div class="grid cols-2" style="margin-top:14px">
+    <div class="card blue"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-terminal"/></svg><h3>VS Code</h3><p>עורך קוד חינמי ומקצועי (עם תוסף Python) — כך עובדים רוב המתכנתים בתעשייה בפועל. דורש התקנה חד-פעמית.</p></div>
+    <div class="card green"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-globe"/></svg><h3>מפעיל Python מקוון</h3><p>כותבים ומריצים קוד ישירות בדפדפן, בלי להתקין כלום — נוח למחשבים ללא הרשאות התקנה.</p></div>
+  </div>
+  <div class="callout tip" style="margin-top:20px">
+    <svg class="icon" viewBox="0 0 24 24"><use href="#ic-bulb"/></svg>
+    <p>שני האפשרויות מריצות בדיוק את אותה שפת Python — ההבדל הוא רק באיזה כלי כותבים בו את הקוד.</p>
+  </div>` },
+
+{ type:"content", eyebrow:"32 · התקנה לבית", title:"רוצים להתקין בבית? <span class='accent'>שלושה צעדים</span>",
+  body:`
+  <p class="body-text">לא חובה בשביל הכיתה — אבל אם תרצו להמשיך לתרגל גם בבית, כך מתקינים בשלושה צעדים פשוטים:</p>
+  <ol class="plain">
+    <li><strong class="hl2">הורדת Python</strong> — מהאתר הרשמי python.org, גרסה מתאימה למערכת ההפעלה שלכם</li>
+    <li><strong class="hl2">התקנת VS Code</strong> — עורך הקוד החינמי, ואז הוספת תוסף Python מתוכו</li>
+    <li><strong class="hl2">בדיקה שהכל עובד</strong> — פתחו קובץ חדש בסיומת <code style="font-family:var(--font-mono);color:var(--gold)">.py</code>, כתבו <code style="font-family:var(--font-mono);color:var(--gold)">print("שלום עולם")</code>, ולחצו Run</li>
+  </ol>
+  <div class="callout tip" style="margin-top:16px">
+    <svg class="icon" viewBox="0 0 24 24"><use href="#ic-bulb"/></svg>
+    <p>נתקעתם בהתקנה? זה קורה להרבה מתחילים — פשוט תשאלו בשיעור הבא, ונפתור יחד.</p>
+  </div>` },
+
+{ type:"content", eyebrow:"33 · לפני שצוללים פנימה", title:"טיפים <span class='accent'>להצלחה</span> בקורס הזה",
+  body:`
+  <div class="grid cols-2">
+    <div class="card green"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-check"/></svg><h3>טעויות הן חלק מהתהליך</h3><p>גם מתכנתים מקצועיים טועים כל הזמן — זה נורמלי לגמרי, לא סימן שאתם "לא טובים בזה"</p></div>
+    <div class="card blue"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-terminal"/></svg><h3>תרגלו בעצמכם</h3><p>הדרך הכי טובה ללמוד תכנות היא לכתוב קוד — לא רק לצפות בו</p></div>
+    <div class="card gold"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-warn"/></svg><h3>קראו הודעות שגיאה</h3><p>הן נראות מפחידות בהתחלה, אבל בדרך כלל אומרות בדיוק מה הבעיה ואיפה</p></div>
+    <div class="card violet"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-bulb"/></svg><h3>אל תפחדו לנסות</h3><p>אי אפשר "לשבור" את המחשב בכתיבת קוד — הכי גרוע שיקרה זו שגיאה, ואפשר לתקן</p></div>
+  </div>` },
+
+{ type:"content", eyebrow:"34 · טיפ נוסף", title:"המלכודת הכי גדולה: <span class='accent'>השוואה לאחרים</span>",
+  body:`
+  <p class="body-text">בכל כיתה יש מי שיתפוס דברים מהר יותר, ומי שיצטרך עוד סבב הסבר — וזה <strong class="hl2">לגמרי נורמלי</strong>. קצב הלמידה משתנה מאדם לאדם, ולא אומר כלום על היכולת הסופית שלכם.</p>
+  <p class="body-text">במקום להשוות את עצמכם לחבר/ה לספסל — השוו את עצמכם ל<strong class="hl">עצמכם של שבוע שעבר</strong>. זו המדידה שבאמת חשובה.</p>` },
+
+{ type:"code", eyebrow:"35 · תרבות Python", title:"<span class='accent'>The Zen of Python</span> — הפילוסופיה מאחורי השפה",
+  desc:"עובדה כיפית: אם תריצו את השורה הבאה בתוך Python אמיתית, תקבלו רשימת עקרונות שמנחים כל מי שכותב קוד בשפה:",
+  code:[
+    {t:"tok-kw",c:"import"},{t:"",c:" "},{t:"tok-var",c:"this"},
+  ],
+  outLabel:"קטע מהפלט (מתורגם לעברית):", outText:"יפה עדיף על מכוער.\nמפורש עדיף על מרומז.\nפשוט עדיף על מסובך.\nקריאות נחשבת.\n..." },
+
+{ type:"exercises", eyebrow:"36 · שאלות נפוצות", title:"שאלות <span class='accent'>נפוצות</span> (FAQ)",
+  desc:"כמה שאלות ששאלו אותנו כבר מתלמידים ותלמידות בשנים קודמות:",
+  items:[
+    {tag:"easy", text:"<strong>האם חייבים לדעת אנגלית ברמה גבוהה?</strong> — לא. מספיק להכיר מילים בסיסיות כמו print, if, for — ונלמד אותן תוך כדי הקורס."},
+    {tag:"easy", text:"<strong>מה קורה אם המחשב שלי ישן?</strong> — Python קלה מאוד למחשב. כמעט כל מחשב מהעשור האחרון מריץ אותה בקלות."},
+    {tag:"med", text:"<strong>אם אני טועה בקוד, אני יכול/ה \"לשבור\" את המחשב?</strong> — ממש לא. הכי גרוע שיקרה זו הודעת שגיאה, ותמיד אפשר לתקן."},
+  ]},
+
+{ type:"code", eyebrow:"37 · טעימה קטנה", title:"Python <span class='accent'>כמחשבון</span>",
+  desc:"לפני שנסיים היום, טעימה קטנה למה שמחכה לנו — Python יודעת גם לחשב:",
+  code:[
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"("},{t:"tok-num",c:"2"},{t:"tok-punc",c:" + "},{t:"tok-num",c:"2"},{t:"tok-punc",c:")"},{t:"",c:"\n"},
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"("},{t:"tok-num",c:"10"},{t:"tok-punc",c:" * "},{t:"tok-num",c:"4"},{t:"tok-punc",c:")"},{t:"",c:"\n"},
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"("},{t:"tok-num",c:"100"},{t:"tok-punc",c:" / "},{t:"tok-num",c:"3"},{t:"tok-punc",c:")"},
+  ],
+  outLabel:"פלט:", outText:"4\n40\n33.333333333333336" },
+
+{ type:"code", eyebrow:"38 · טעימה מהיחידה הבאה", title:"לשמור מידע — <span class='accent'>טעימה</span> מיחידה 1",
+  desc:"ביחידה הקרובה נלמד איך לכתוב את התוכנית הראשונה שלכם, ואיך לגרום למחשב \"לזכור\" מידע כמו שם:",
+  code:[
+    {t:"tok-var",c:"name"},{t:"tok-punc",c:" = "},{t:"tok-str",c:'"עומר"'},{t:"",c:"\n"},
+    {t:"tok-fn",c:"print"},{t:"tok-punc",c:"("},{t:"tok-str",c:'"שלום,"'},{t:"tok-punc",c:", "},{t:"tok-var",c:"name"},{t:"tok-punc",c:")"},
+  ],
+  outLabel:"פלט:", outText:"שלום, עומר" },
+
+{ type:"content", eyebrow:"39 · סיכום מהיר", title:"שלושה דברים <span class='accent'>לזכור</span> מהיום",
+  body:`
+  <div class="grid cols-3">
+    <div class="card blue"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-cpu"/></svg><h3>מחשב = ביצוע מדויק</h3><p>המחשב מבצע בדיוק את מה שכתוב, שורה אחרי שורה — לא יותר ולא פחות</p></div>
+    <div class="card gold"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-terminal"/></svg><h3>Python = קריאה וחזקה</h3><p>שפה עילית, פשוטה ללמידה, ונמצאת כמעט בכל תחום בעולם האמיתי</p></div>
+    <div class="card green"><svg class="icon" viewBox="0 0 24 24"><use href="#ic-bulb"/></svg><h3>פירוק לצעדים</h3><p>המיומנות המרכזית בתכנות — לחלק בעיה גדולה לצעדים קטנים וברורים</p></div>
+  </div>` },
+
+{ type:"exercises", eyebrow:"40 · לפני שממשיכים", title:"שאלה <span class='accent'>אחרונה</span> למחשבה",
+  items:[
+    {tag:"easy", text:"אם היית צריך/ה להסביר למישהו מה זה תכנות במשפט אחד — מה היית אומר/ת?"},
+    {tag:"easy", text:"מה הציפייה שלך מהקורס הזה?"},
+  ]},
+
+{ type:"title", small:true, kicker:"סוף מבוא · יחידה 1 בהמשך", title:'בואו <span class="py-mark">נתחיל</span> <span class="py-mark2">לכתוב קוד</span>',
+  sub:"ביחידה הבאה: הכרות עם Python וכתיבת התוכנית הראשונה שלכם — פקודת print().",
+  prompt:'>>> next_lesson() <span class="caret"></span>' },
+];
+
+/* ============================================================
+   RENDER ENGINE — shared across all decks in this course.
+   Reads the SLIDES data array above and builds the DOM.
+   ============================================================ */
+function esc(s){ return String(s); } // content is authored HTML on purpose (icons, spans)
+
+function renderCode(tokens){
+  return tokens.map(tk => tk.t ? `<span class="${tk.t}">${tk.c}</span>` : tk.c).join("");
+}
+
+function buildSlide(s, i){
+  const el = document.createElement("section");
+  el.className = "slide";
+  el.dataset.index = i;
+
+  if(s.type === "title"){
+    el.classList.add("title-slide");
+    el.innerHTML = `
+      <div class="kicker">${s.kicker}</div>
+      <h1>${s.title}</h1>
+      <p>${s.sub}</p>
+      <div class="prompt-line">${s.prompt}</div>
+    `;
+  } else if(s.type === "content"){
+    el.innerHTML = `
+      <div class="eyebrow"><span class="dot"></span>${s.eyebrow}</div>
+      <h1 class="slide-title">${s.title}</h1>
+      ${s.body}
+    `;
+  } else if(s.type === "code"){
+    el.innerHTML = `
+      <div class="eyebrow"><span class="dot"></span>${s.eyebrow}</div>
+      <h1 class="slide-title">${s.title}</h1>
+      ${s.desc ? `<p class="body-text" style="margin-bottom:16px">${s.desc}</p>` : ""}
+      <div class="codewrap">
+        <div class="chead"><b>&gt;_</b> example.py</div>
+        <pre class="code">${renderCode(s.code)}</pre>
+      </div>
+      ${s.outText ? `
+      <div class="outwrap" style="margin-top:14px">
+        <div class="ohead">${s.outLabel || "פלט:"}</div>
+        <div class="obody">${s.outText}</div>
+      </div>` : ""}
+    `;
+  } else if(s.type === "exercises"){
+    el.innerHTML = `
+      <div class="eyebrow"><span class="dot"></span>${s.eyebrow}</div>
+      <h1 class="slide-title">${s.title}</h1>
+      ${s.desc ? `<p class="body-text" style="margin-bottom:6px">${s.desc}</p>` : ""}
+      <ul class="exlist">
+        ${s.items.map((it, idx) => `
+          <li>
+            <span class="tag ${it.tag}">${it.tag === "easy" ? "קל" : it.tag === "med" ? "בינוני" : "מאתגר"}</span>
+            <span class="exbody">${it.text}</span>
+            <span class="exnum">${idx+1}</span>
+          </li>
+        `).join("")}
+      </ul>
+    `;
+  }
+  return el;
+}
+
+(function initDeck(){
+  const viewport = document.getElementById("viewport");
+  const dotsNav = document.getElementById("dotsNav");
+  const fill = document.getElementById("progressFill");
+  const pgCur = document.getElementById("pg-cur");
+  const pgTotal = document.getElementById("pg-total");
+  const tbName = document.getElementById("tb-name");
+  if(tbName) tbName.textContent = (typeof FILE_NAME !== "undefined" ? FILE_NAME : "deck.py");
+
+  let cur = 0;
+  const n = SLIDES.length;
+  pgTotal.textContent = n;
+
+  SLIDES.forEach((s, i) => {
+    viewport.appendChild(buildSlide(s, i));
+    const dot = document.createElement("button");
+    dot.setAttribute("aria-label", "שקופית " + (i+1));
+    dot.addEventListener("click", () => go(i));
+    dotsNav.appendChild(dot);
+  });
+  const slideEls = Array.from(viewport.children);
+  const dotEls = Array.from(dotsNav.children);
+
+  function go(i){
+    cur = Math.max(0, Math.min(n-1, i));
+    slideEls.forEach((el, idx) => el.classList.toggle("active", idx === cur));
+    dotEls.forEach((el, idx) => el.classList.toggle("on", idx === cur));
+    fill.style.width = (n <= 1 ? 100 : (cur/(n-1))*100) + "%";
+    pgCur.textContent = cur + 1;
+  }
+  go(0);
+
+  document.getElementById("btnNext").addEventListener("click", () => go(cur+1));
+  document.getElementById("btnPrev").addEventListener("click", () => go(cur-1));
+  document.getElementById("btnFs").addEventListener("click", () => {
+    if(!document.fullscreenElement){ document.documentElement.requestFullscreen().catch(()=>{}); }
+    else { document.exitFullscreen().catch(()=>{}); }
+  });
+
+  window.addEventListener("keydown", (e) => {
+    if(["ArrowRight","PageDown"," ","Spacebar"].includes(e.key)){ go(cur+1); e.preventDefault(); }
+    else if(["ArrowLeft","PageUp"].includes(e.key)){ go(cur-1); e.preventDefault(); }
+    else if(e.key === "Home"){ go(0); e.preventDefault(); }
+    else if(e.key === "End"){ go(n-1); e.preventDefault(); }
+    else if(e.key === "f" || e.key === "F"){ document.getElementById("btnFs").click(); }
+  });
+
+  let touchX = null;
+  viewport.addEventListener("touchstart", (e) => { touchX = e.touches[0].clientX; }, {passive:true});
+  viewport.addEventListener("touchend", (e) => {
+    if(touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if(Math.abs(dx) > 50){ go(dx < 0 ? cur+1 : cur-1); }
+    touchX = null;
+  }, {passive:true});
+})();
+</script>
