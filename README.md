@@ -1,8 +1,8 @@
-# מכינה טכנולוגית – שפת תכנות Python
+# שפת תכנות Python – מגמת תקשוב ומחשבים
 
 חומרי הלימוד והמצגות של הקורס. כל הקבצים ניתנים לצפייה ישירות בדפדפן או להורדה.
 
-**Pre-university Python course — slides and study materials.**
+**Python programming course (Ministry of Education curriculum, שאלון 735911) — slides and study materials.**
 
 ---
 
@@ -31,7 +31,7 @@
 ## 🗓️ תוכנית הקורס (Syllabus)
 
 - [תוכנית לימודים – משרד החינוך (Python, שאלון 735911)](syllabus/python_curriculum_Atid.pdf)
-- [תוכנית מפגשים – קורס הכנה לסמסטר](syllabus/python_preuni_schedule.pdf)
+- [תוכנית מפגשים – קורס ההכנה (מכינה)](syllabus/python_preuni_schedule.pdf) – *הקורס המקוצר שנלמד לפני תחילת השנה*
 
 ---
 
