@@ -1129,7 +1129,7 @@ const SLIDES = [
   {
     "type": "content",
     "eyebrow": "מלכודת קלאסית",
-    "title": "<span class='accent'>x == 1 or 2</span> — לא מה שחשבתם",
+    "title": "<span class='accent' dir='ltr'>x == 1 or 2</span> — לא מה שחשבתם",
     "body": "\n  <p class=\"body-text\">מתחילים כותבים לפעמים <code style=\"font-family:var(--font-mono)\">if x == 1 or 2:</code> מתוך כוונה \"אם x הוא 1 או 2\". אבל פייתון קוראת את זה כ-<code style=\"font-family:var(--font-mono)\">(x == 1) or (2)</code> — והמספר 2 נחשב \"אמת\", ולכן התנאי <strong class=\"hl2\">תמיד</strong> מתקיים.</p>\n  <div class=\"grid cols-2\" style=\"margin-top:14px\">\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\">x == 1 or 2</h3><p>❌ תמיד True — ה-2 לבד הוא ביטוי \"אמיתי\"</p></div>\n    <div class=\"card green\"><h3 style=\"font-family:var(--font-mono)\">x == 1 or x == 2</h3><p>✅ כל צד הוא השוואה שלמה בפני עצמה</p></div>\n  </div>\n  <div class=\"callout warn\" style=\"margin-top:16px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-warn\"/></svg>\n    <p>כלל: משני צידי <code style=\"font-family:var(--font-mono)\">and</code> / <code style=\"font-family:var(--font-mono)\">or</code> חייב לעמוד <strong>ביטוי בוליאני שלם</strong>. אי אפשר \"לקצר\" ולהשמיט את המשתנה בצד השני.</p>\n  </div>"
   },
   {
@@ -1521,7 +1521,7 @@ const SLIDES = [
   {
     "type": "content",
     "eyebrow": "טבלת מעקב · ביטוי",
-    "title": "עוקבים אחרי <span class='accent'>a or b and c</span>",
+    "title": "עוקבים אחרי <span class='accent' dir='ltr'>a or b and c</span>",
     "body": "\n  <table class=\"trace ltr\">\n    <tr><th>שלב</th><th>ביטוי</th><th>תוצאה</th></tr>\n    <tr><td>1</td><td>b and c → False and False</td><td class=\"f\">False</td></tr>\n    <tr><td>2</td><td>a or (False) → True or False</td><td class=\"t\">True</td></tr>\n  </table>\n  <p class=\"body-text\" style=\"margin-top:18px\">ועם הסוגריים <code style=\"font-family:var(--font-mono)\">(a or b) and c</code>:</p>\n  <table class=\"trace ltr\">\n    <tr><th>שלב</th><th>ביטוי</th><th>תוצאה</th></tr>\n    <tr><td>1</td><td>a or b → True or False</td><td class=\"t\">True</td></tr>\n    <tr><td>2</td><td>(True) and c → True and False</td><td class=\"f\">False</td></tr>\n  </table>"
   },
   {
@@ -2119,7 +2119,7 @@ const SLIDES = [
   {
     "type": "content",
     "eyebrow": "ביט מול ביט",
-    "title": "למה <span class='accent'>12 &amp; 10 = 8</span>?",
+    "title": "למה <span class='accent' dir='ltr'>12 &amp; 10 = 8</span>?",
     "body": "\n  <table class=\"trace ltr\">\n    <tr><th></th><th>8</th><th>4</th><th>2</th><th>1</th><th>ערך</th></tr>\n    <tr><td>a</td><td class=\"o\">1</td><td class=\"o\">1</td><td>0</td><td>0</td><td>12</td></tr>\n    <tr><td>b</td><td class=\"o\">1</td><td>0</td><td class=\"o\">1</td><td>0</td><td>10</td></tr>\n    <tr><td>a &amp; b</td><td class=\"t\">1</td><td class=\"f\">0</td><td class=\"f\">0</td><td class=\"f\">0</td><td class=\"o\">8</td></tr>\n    <tr><td>a | b</td><td class=\"t\">1</td><td class=\"t\">1</td><td class=\"t\">1</td><td class=\"f\">0</td><td class=\"o\">14</td></tr>\n    <tr><td>a ^ b</td><td class=\"f\">0</td><td class=\"t\">1</td><td class=\"t\">1</td><td class=\"f\">0</td><td class=\"o\">6</td></tr>\n  </table>\n  <p class=\"body-text\" style=\"margin-top:16px\">בכל עמודה משתמשים בטבלת האמת של האופרטור — בדיוק אותן טבלאות מהחלק הראשון, רק עם 1/0 במקום True/False.</p>"
   },
   {
@@ -3301,7 +3301,7 @@ const SLIDES = [
   {
     "type": "content",
     "eyebrow": "שימו לב",
-    "title": "למה <span class='accent'>if perms &amp; WRITE:</span> עובד?",
+    "title": "למה <span class='accent' dir='ltr'>if perms &amp; WRITE:</span> עובד?",
     "body": "\n  <p class=\"body-text\"><code style=\"font-family:var(--font-mono)\">perms &amp; WRITE</code> מחזיר מספר: 2 אם הביט דלוק, 0 אם לא. ב-<code style=\"font-family:var(--font-mono)\">if</code>, פייתון מתייחסת ל-<strong class=\"hl2\">0 כ-False</strong> ולכל מספר אחר כ-True. אותו כלל תקף ל-<code style=\"font-family:var(--font-mono)\">\"\"</code> (מחרוזת ריקה = False) ולכל מחרוזת אחרת (True).</p>\n  <div class=\"callout tip\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>זה גם מסביר את המלכודת <code style=\"font-family:var(--font-mono)\">x == 1 or 2</code> מהחלק הראשון: 2 הוא מספר שונה מאפס, ולכן \"אמיתי\".</p>\n  </div>"
   },
   {
