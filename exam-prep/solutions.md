@@ -9,7 +9,7 @@
 
 ## 1. פירוק מספר שלם לספרות: `//`, `%` ו‑`**` עם בסיס 10
 
-### תרגיל 1: סכום וכמות ספרות
+### תרגיל 1 🟢: סכום וכמות ספרות
 
 ```python
 num = int(input("הקלד מספר: "))
@@ -33,7 +33,7 @@ print("סכום:", total)
 סכום: 16
 ```
 
-### תרגיל 2: כמה פעמים מופיעה ספרה
+### תרגיל 2 🟢: כמה פעמים מופיעה ספרה
 
 ```python
 num = int(input("מספר: "))
@@ -56,7 +56,46 @@ print("הספרה", d, "מופיעה", times, "פעמים")
 הספרה 7 מופיעה 3 פעמים
 ```
 
-### תרגיל 3: מספר הפוך ופלינדרום
+### תרגיל 3 🟢: בלי לולאה: מספר תלת‑ספרתי
+
+```python
+num = int(input("מספר תלת-ספרתי: "))
+hundreds = num // 100
+tens = num // 10 % 10
+units = num % 10
+print(hundreds, tens, units)
+print(units * 100 + tens * 10 + hundreds)
+```
+
+הקלט: `472`
+
+הפלט:
+
+```text
+מספר תלת-ספרתי: 472
+4 7 2
+274
+```
+
+### תרגיל 4 🟢: ספרת האחדות וספרת העשרות
+
+```python
+num = int(input("מספר: "))
+print("אחדות:", num % 10)
+print("עשרות:", num // 10 % 10)
+```
+
+הקלט: `3786`
+
+הפלט:
+
+```text
+מספר: 3786
+אחדות: 6
+עשרות: 8
+```
+
+### תרגיל 5 🟡: מספר הפוך ופלינדרום
 
 ```python
 num = int(input("מספר: "))
@@ -82,7 +121,27 @@ else:
 פלינדרום
 ```
 
-### תרגיל 4: מספר מהספרות הזוגיות
+### תרגיל 6 🟡: הספרה במקום k
+
+```python
+num = int(input("מספר: "))
+k = int(input("k: "))
+print(num // 10 ** k % 10)
+```
+
+הקלט: `905162` · `3`
+
+הפלט:
+
+```text
+מספר: 905162
+k: 3
+5
+```
+
+`**` מחושב לפני `//` ו‑`%`: `905162 // 1000` הוא 905, ו‑`905 % 10` הוא 5.
+
+### תרגיל 7 🔴: מספר מהספרות הזוגיות
 
 ```python
 num = int(input("מספר: "))
@@ -106,15 +165,46 @@ print(result)
 482
 ```
 
-### תרגיל 5: בלי לולאה: מספר תלת‑ספרתי
+### תרגיל 8 🔴: ספרות בסדר עולה
 
 ```python
-num = int(input("מספר תלת-ספרתי: "))
-hundreds = num // 100
-tens = num // 10 % 10
-units = num % 10
-print(hundreds, tens, units)
-print(units * 100 + tens * 10 + hundreds)
+num = int(input("מספר: "))
+ok = True
+prev = num % 10              # the rightmost digit
+num //= 10
+while num > 0:
+    digit = num % 10
+    if digit >= prev:        # going left, every digit must be smaller
+        ok = False
+    prev = digit
+    num //= 10
+if ok:
+    print("עולה")
+else:
+    print("לא עולה")
+```
+
+הקלט: `1359`
+
+הפלט:
+
+```text
+מספר: 1359
+עולה
+```
+
+### תרגיל 9 🔴: כל ספרה פעמיים
+
+```python
+num = int(input("מספר: "))
+result = 0
+place = 0
+while num > 0:
+    digit = num % 10
+    result += digit * 10 ** place + digit * 10 ** (place + 1)
+    place += 2
+    num //= 10
+print(result)
 ```
 
 הקלט: `472`
@@ -122,36 +212,84 @@ print(units * 100 + tens * 10 + hundreds)
 הפלט:
 
 ```text
-מספר תלת-ספרתי: 472
-4 7 2
-274
+מספר: 472
+447722
 ```
-
-### תרגיל 6: הספרה במקום k
-
-```python
-num = int(input("מספר: "))
-k = int(input("k: "))
-print(num // 10 ** k % 10)
-```
-
-הקלט: `905162` · `3`
-
-הפלט:
-
-```text
-מספר: 905162
-k: 3
-5
-```
-
-`**` מחושב לפני `//` ו‑`%`: `905162 // 1000` הוא 905, ו‑`905 % 10` הוא 5.
 
 ---
 
 ## 2. לולאות `while` ו‑`for`, לולאות מקוננות וזקיף
 
-### תרגיל 7: ציונים עד זקיף
+### תרגיל 10 🟢: המספרים הזוגיים עד 20
+
+```python
+for i in range(2, 21, 2):
+    print(i, end=" ")
+print()
+```
+
+הפלט:
+
+```text
+2 4 6 8 10 12 14 16 18 20 
+```
+
+### תרגיל 11 🟢: לוח הכפל של מספר
+
+```python
+n = int(input("מספר: "))
+for i in range(1, 11):
+    print(n, "x", i, "=", n * i)
+```
+
+הקלט: `7`
+
+הפלט:
+
+```text
+מספר: 7
+7 x 1 = 7
+7 x 2 = 14
+7 x 3 = 21
+7 x 4 = 28
+7 x 5 = 35
+7 x 6 = 42
+7 x 7 = 49
+7 x 8 = 56
+7 x 9 = 63
+7 x 10 = 70
+```
+
+### תרגיל 12 🟢: חיוביים ושליליים עד זקיף
+
+```python
+pos = 0
+neg = 0
+num = int(input("מספר (0 לסיום): "))
+while num != 0:
+    if num > 0:
+        pos += 1
+    else:
+        neg += 1
+    num = int(input("מספר (0 לסיום): "))
+print("חיוביים:", pos, "שליליים:", neg)
+```
+
+הקלט: `5` · `-2` · `8` · `-7` · `3` · `0`
+
+הפלט:
+
+```text
+מספר (0 לסיום): 5
+מספר (0 לסיום): -2
+מספר (0 לסיום): 8
+מספר (0 לסיום): -7
+מספר (0 לסיום): 3
+מספר (0 לסיום): 0
+חיוביים: 3 שליליים: 2
+```
+
+### תרגיל 13 🟡: ציונים עד זקיף
 
 ```python
 count = 0
@@ -187,7 +325,7 @@ else:
 הכי גבוה: 95
 ```
 
-### תרגיל 8: לולאה מקוננת: סכום ספרות 6
+### תרגיל 14 🟡: לולאה מקוננת: סכום ספרות 6
 
 ```python
 for n in range(1, 61):
@@ -207,7 +345,29 @@ print()
 6 15 24 33 42 51 60 
 ```
 
-### תרגיל 9: זקיף ומקסימום
+### תרגיל 15 🟡: משולש מספרים
+
+```python
+n = int(input("n: "))
+for i in range(1, n + 1):
+    for j in range(1, i + 1):
+        print(j, end=" ")
+    print()
+```
+
+הקלט: `4`
+
+הפלט:
+
+```text
+n: 4
+1 
+1 2 
+1 2 3 
+1 2 3 4 
+```
+
+### תרגיל 16 🔴: זקיף ומקסימום
 
 ```python
 best_num = 0
@@ -238,33 +398,31 @@ print(best_num, "עם סכום ספרות", best_sum)
 99 עם סכום ספרות 18
 ```
 
-### תרגיל 10: משולש מספרים
+### תרגיל 17 🔴: מספרים ראשוניים עד 50
 
 ```python
-n = int(input("n: "))
-for i in range(1, n + 1):
-    for j in range(1, i + 1):
-        print(j, end=" ")
-    print()
+for n in range(2, 51):
+    prime = True
+    for d in range(2, n):
+        if n % d == 0:
+            prime = False
+            break
+    if prime:
+        print(n, end=" ")
+print()
 ```
-
-הקלט: `4`
 
 הפלט:
 
 ```text
-n: 4
-1 
-1 2 
-1 2 3 
-1 2 3 4 
+2 3 5 7 11 13 17 19 23 29 31 37 41 43 47 
 ```
 
 ---
 
 ## 3. רשימות: איברים סמוכים ורשימת מונים
 
-### תרגיל 11: זוג שבו השני כפול
+### תרגיל 18 🟢: זוג שבו השני כפול
 
 ```python
 nums = [3, 6, 2, 4, 8, 5, 10, 1]
@@ -286,31 +444,46 @@ print("זוגות:", count)
 זוגות: 4
 ```
 
-### תרגיל 12: הרצף העולה הארוך ביותר
+### תרגיל 19 🟢: מיקום וערך
 
 ```python
-temps = [18, 20, 23, 21, 22, 25, 27, 28, 24]
-run = 1
-best = 1
-for i in range(len(temps) - 1):
-    if temps[i + 1] > temps[i]:
-        run += 1
-        if run > best:
-            best = run
-    else:
-        run = 1
-print("הרצף העולה הארוך ביותר:", best)
+prices = [12, 7, 30, 18]
+best = 0                         # the INDEX of the highest price so far
+for i in range(len(prices)):
+    print("מקום", i, "ערך", prices[i])
+    if prices[i] > prices[best]:
+        best = i
+print("המחיר הגבוה נמצא במקום", best)
 ```
 
 הפלט:
 
 ```text
-הרצף העולה הארוך ביותר: 5
+מקום 0 ערך 12
+מקום 1 ערך 7
+מקום 2 ערך 30
+מקום 3 ערך 18
+המחיר הגבוה נמצא במקום 2
 ```
 
-הרצף הוא 21, 22, 25, 27, 28.
+### תרגיל 20 🟢: כמה פעמים השכן גדול יותר
 
-### תרגיל 13: שלושה שווים ברצף
+```python
+steps = [5, 8, 6, 9, 12, 4]
+count = 0
+for i in range(len(steps) - 1):
+    if steps[i + 1] > steps[i]:
+        count += 1
+print(count)
+```
+
+הפלט:
+
+```text
+3
+```
+
+### תרגיל 21 🟡: שלושה שווים ברצף
 
 ```python
 lst = [4, 1, 1, 7, 7, 7, 2]
@@ -327,7 +500,7 @@ print(found)
 True
 ```
 
-### תרגיל 14: רשימת מונים: הספרה השכיחה
+### תרגיל 22 🟡: רשימת מונים: הספרה השכיחה
 
 ```python
 num = int(input("מספר: "))
@@ -358,7 +531,7 @@ print("השכיחה:", best)
 השכיחה: 3
 ```
 
-### תרגיל 15: ציונים שאף אחד לא קיבל
+### תרגיל 23 🟡: ציונים שאף אחד לא קיבל
 
 ```python
 grades = [7, 9, 7, 10, 5, 9, 7, 8, 5, 10]
@@ -377,7 +550,7 @@ print()
 1 2 3 4 6 
 ```
 
-### תרגיל 16: מיקום מול ערך (שאלת מעקב)
+### תרגיל 24 🟡: מיקום מול ערך (שאלת מעקב)
 
 ```python
 lst = [3, 0, 2, 2, 1]
@@ -398,36 +571,60 @@ for i in range(len(lst)):
 
 `lst[0]` הוא 3, ולכן `lst[lst[0]]` הוא `lst[3]`, כלומר 2. רק במקום 2 הערך שווה למיקום.
 
----
-
-## 4. מילון (`dict`)
-
-### תרגיל 17: ספירת מילים
+### תרגיל 25 🔴: הרצף העולה הארוך ביותר
 
 ```python
-sentence = input("משפט: ")
-counts = {}                           # an empty dictionary
-for word in sentence.split():
-    if word in counts:
-        counts[word] += 1
+temps = [18, 20, 23, 21, 22, 25, 27, 28, 24]
+run = 1
+best = 1
+for i in range(len(temps) - 1):
+    if temps[i + 1] > temps[i]:
+        run += 1
+        if run > best:
+            best = run
     else:
-        counts[word] = 1              # insert a new key
-for word, n in counts.items():
-    print(word, n)
+        run = 1
+print("הרצף העולה הארוך ביותר:", best)
 ```
-
-הקלט: `כן לא כן אולי כן לא`
 
 הפלט:
 
 ```text
-משפט: כן לא כן אולי כן לא
-כן 3
-לא 2
-אולי 1
+הרצף העולה הארוך ביותר: 5
 ```
 
-### תרגיל 18: ספר טלפונים
+הרצף הוא 21, 22, 25, 27, 28.
+
+### תרגיל 26 🔴: כל מספר בדיוק פעם אחת
+
+```python
+for lst in [[3, 1, 4, 2], [3, 1, 3, 2]]:
+    n = len(lst)
+    counts = [0] * (n + 1)
+    ok = True
+    for x in lst:
+        if x < 1 or x > n:
+            ok = False
+        else:
+            counts[x] += 1
+    for v in range(1, n + 1):
+        if counts[v] != 1:
+            ok = False
+    print(lst, ok)
+```
+
+הפלט:
+
+```text
+[3, 1, 4, 2] True
+[3, 1, 3, 2] False
+```
+
+---
+
+## 4. מילון (`dict`)
+
+### תרגיל 27 🟢: ספר טלפונים
 
 ```python
 phones = {}
@@ -454,7 +651,81 @@ for name in phones.keys():
 מאיה
 ```
 
-### תרגיל 19: ממוצע לכל תלמיד
+### תרגיל 28 🟢: מחירון
+
+```python
+prices = {"עט": 4, "מחברת": 9, "מחק": 2}
+print(prices["מחברת"])
+for item, price in prices.items():
+    print(item, price)
+
+total = 0
+for item in ["עט", "עט", "מחברת"]:
+    total += prices[item]      # access by key
+print("לתשלום:", total)
+```
+
+הפלט:
+
+```text
+9
+עט 4
+מחברת 9
+מחק 2
+לתשלום: 17
+```
+
+### תרגיל 29 🟡: ספירת מילים
+
+```python
+sentence = input("משפט: ")
+counts = {}                           # an empty dictionary
+for word in sentence.split():
+    if word in counts:
+        counts[word] += 1
+    else:
+        counts[word] = 1              # insert a new key
+for word, n in counts.items():
+    print(word, n)
+```
+
+הקלט: `כן לא כן אולי כן לא`
+
+הפלט:
+
+```text
+משפט: כן לא כן אולי כן לא
+כן 3
+לא 2
+אולי 1
+```
+
+### תרגיל 30 🟡: אותיות שחוזרות
+
+```python
+word = input("מילה: ")
+counts = {}
+for ch in word:
+    if ch in counts:
+        counts[ch] += 1
+    else:
+        counts[ch] = 1
+for ch in counts.keys():
+    if counts[ch] > 1:
+        print(ch, counts[ch])
+```
+
+הקלט: `banana`
+
+הפלט:
+
+```text
+מילה: banana
+a 3
+n 2
+```
+
+### תרגיל 31 🔴: ממוצע לכל תלמיד
 
 ```python
 pairs = [("דנה", 90), ("עומר", 60), ("דנה", 80), ("עומר", 100), ("לין", 75)]
@@ -475,11 +746,74 @@ for name in grades:
 לין 75.0
 ```
 
+### תרגיל 32 🔴: מילון הפוך
+
+```python
+cities = {"נור": "ירכא", "אדם": "עכו", "מאיה": "ירכא", "רון": "חיפה"}
+by_city = {}
+for name, city in cities.items():
+    if city not in by_city:
+        by_city[city] = []
+    by_city[city].append(name)
+for city in by_city:
+    print(city, by_city[city])
+```
+
+הפלט:
+
+```text
+ירכא ['נור', 'מאיה']
+עכו ['אדם']
+חיפה ['רון']
+```
+
 ---
 
 ## 5. קבצים (`txt` בלבד): קריאה, כתיבה, `split`
 
-### תרגיל 20: הדוגמה מההנחיות: מי נכשל במתמטיקה
+### תרגיל 33 🟢: מספור שורות
+
+```python
+file = open("names.txt", "r", encoding="utf-8")
+n = 1
+for line in file:
+    print(str(n) + ".", line.strip())
+    n += 1
+file.close()
+```
+
+הפלט:
+
+```text
+1. נור
+2. אדם
+3. מאיה
+```
+
+### תרגיל 34 🟢: כתיבה ואחר כך קריאה
+
+```python
+file = open("squares.txt", "w", encoding="utf-8")
+for i in range(1, 6):
+    file.write(str(i * i) + "\n")       # write() takes a string only
+file.close()
+
+file = open("squares.txt", "r", encoding="utf-8")
+print(file.read())
+file.close()
+```
+
+הפלט:
+
+```text
+1
+4
+9
+16
+25
+```
+
+### תרגיל 35 🟡: הדוגמה מההנחיות: מי נכשל במתמטיקה
 
 ```python
 file = open("grades.txt", "r", encoding="utf-8")
@@ -503,7 +837,49 @@ file.close()
 
 `int("45\n")` מצליח, כי `int()` מתעלם מה‑`\n` שבסוף. אבל אם השדה האחרון היה טקסט, היה צריך `line.strip()` לפני ה‑`split`.
 
-### תרגיל 21: ממוצע לכל מקצוע, לקובץ חדש
+### תרגיל 36 🟡: שורת כותרת עם readline
+
+```python
+file = open("stock.txt", "r", encoding="utf-8")
+title = file.readline()               # only the first line
+print(title.strip())
+for line in file:                     # continues from the second line
+    parts = line.strip().split(",")
+    if int(parts[1]) < 10:
+        print(parts[0], parts[1])
+file.close()
+```
+
+הפלט:
+
+```text
+מלאי סניף ירכא
+עט 8
+מחק 3
+```
+
+### תרגיל 37 🟡: שורות, מילים ותווים
+
+```python
+file = open("story.txt", "r", encoding="utf-8")
+text = file.read()                    # the whole file as ONE string
+file.close()
+print("שורות:", len(text.split("\n")) - 1)
+print("מילים:", len(text.split()))
+print("תווים:", len(text))
+```
+
+הפלט:
+
+```text
+שורות: 3
+מילים: 8
+תווים: 36
+```
+
+הקובץ מסתיים ב‑`\n`, ולכן `split("\n")` מחזיר בסוף מחרוזת ריקה, ומחסירים 1. ב‑`len(text)` נספרים גם הרווחים וה‑`\n`.
+
+### תרגיל 38 🔴: ממוצע לכל מקצוע, לקובץ חדש
 
 ```python
 file = open("grades.txt", "r", encoding="utf-8")
@@ -545,53 +921,34 @@ check.close()
 
 `write` מקבלת רק מחרוזת, ולכן הממוצע עובר דרך `str()`. ו‑`write` לא מוסיפה ירידת שורה לבד: כותבים `"\n"`.
 
-### תרגיל 22: שורת כותרת עם readline
+### תרגיל 39 🔴: המצטיין בכל מקצוע
 
 ```python
-file = open("stock.txt", "r", encoding="utf-8")
-title = file.readline()               # only the first line
-print(title.strip())
-for line in file:                     # continues from the second line
-    parts = line.strip().split(",")
-    if int(parts[1]) < 10:
-        print(parts[0], parts[1])
+file = open("grades.txt", "r", encoding="utf-8")
+best = {}                                  # subject -> [name, grade]
+for line in file:
+    data = line.strip().split("#")
+    name, subject, grade = data[0], data[1], int(data[2])
+    if subject not in best or grade > best[subject][1]:
+        best[subject] = [name, grade]
 file.close()
+for subject, pair in best.items():
+    print(subject, pair[0], pair[1])
 ```
 
 הפלט:
 
 ```text
-מלאי סניף ירכא
-עט 8
-מחק 3
+מתמטיקה דני 95
+אנגלית דנה 82
+היסטוריה שירה 88
 ```
-
-### תרגיל 23: שורות, מילים ותווים
-
-```python
-file = open("story.txt", "r", encoding="utf-8")
-text = file.read()                    # the whole file as ONE string
-file.close()
-print("שורות:", len(text.split("\n")) - 1)
-print("מילים:", len(text.split()))
-print("תווים:", len(text))
-```
-
-הפלט:
-
-```text
-שורות: 3
-מילים: 8
-תווים: 36
-```
-
-הקובץ מסתיים ב‑`\n`, ולכן `split("\n")` מחזיר בסוף מחרוזת ריקה, ומחסירים 1. ב‑`len(text)` נספרים גם הרווחים וה‑`\n`.
 
 ---
 
 ## 6. מחרוזות: `len`, `split`, `strip`, `lower`/`upper`, `replace`, `find`, חיתוך
 
-### תרגיל 24: ניקוי קלט
+### תרגיל 40 🟢: ניקוי קלט
 
 ```python
 name = input("שם משתמש: ")
@@ -610,7 +967,44 @@ ahmad_kais
 10
 ```
 
-### תרגיל 25: find וחיתוך: כתובת דוא"ל
+### תרגיל 41 🟢: אינדקסים וחיתוך (שאלת מעקב)
+
+```python
+text = "Python"
+print(text[0], text[-1], text[1:4])
+print(text.upper(), text.find("th"), text.find("x"))
+print(text.replace("P", "J"), len(text))
+```
+
+הפלט:
+
+```text
+P n yth
+PYTHON 2 -1
+Jython 6
+```
+
+`text[1:4]` הוא מהמקום 1 עד המקום 4, **לא כולל** 4: התווים במקומות 1, 2, 3.
+
+### תרגיל 42 🟢: ראשונה, אחרונה ואמצעית
+
+```python
+word = input("מילה: ")
+print(len(word))
+print(word[0], word[-1], word[len(word) // 2])
+```
+
+הקלט: `python`
+
+הפלט:
+
+```text
+מילה: python
+6
+p n h
+```
+
+### תרגיל 43 🟡: find וחיתוך: כתובת דוא"ל
 
 ```python
 emails = ["dana@gmail.com", "omer.walla.co.il", "lin@atid.org"]
@@ -630,23 +1024,65 @@ omer.walla.co.il - כתובת לא תקינה
 lin atid.org
 ```
 
-### תרגיל 26: אינדקסים וחיתוך (שאלת מעקב)
+### תרגיל 44 🟡: ספירת תנועות
 
 ```python
-text = "Python"
-print(text[0], text[-1], text[1:4])
-print(text.upper(), text.find("th"), text.find("x"))
-print(text.replace("P", "J"), len(text))
+text = input("משפט: ").lower()
+count = 0
+for ch in text:
+    if ch in "aeiou":
+        count += 1
+print(count)
+```
+
+הקלט: `I Love Python And SQL`
+
+הפלט:
+
+```text
+משפט: I Love Python And SQL
+5
+```
+
+### תרגיל 45 🔴: משפט פלינדרום
+
+```python
+text = input("משפט: ").replace(" ", "").lower()
+ok = True
+for i in range(len(text) // 2):
+    if text[i] != text[len(text) - 1 - i]:
+        ok = False
+print(text, ok)
+```
+
+הקלט: `Never odd or even`
+
+הפלט:
+
+```text
+משפט: Never odd or even
+neveroddoreven True
+```
+
+### תרגיל 46 🔴: סכום מספרים מתוך מחרוזת
+
+```python
+text = "12,7,30,  5 ,8"
+parts = text.split(",")
+total = 0
+biggest = int(parts[0].strip())
+for p in parts:
+    n = int(p.strip())
+    total += n
+    if n > biggest:
+        biggest = n
+print("סכום:", total, "הגדול:", biggest)
 ```
 
 הפלט:
 
 ```text
-P n yth
-PYTHON 2 -1
-Jython 6
+סכום: 62 הגדול: 30
 ```
-
-`text[1:4]` הוא מהמקום 1 עד המקום 4, **לא כולל** 4: התווים במקומות 1, 2, 3.
 
 </div>
