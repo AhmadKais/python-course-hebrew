@@ -19,9 +19,19 @@
 | 4 | עיצוב משתנים וכתיבת קוד נקי | [פתח](https://ahmadkais.github.io/python-course-hebrew/presentations/html/04_unit4_naming_clean_code.html) | [הורד](presentations/pdf/04_unit4_naming_clean_code.pdf) |
 | 5 | קלט ופלט ועבודה עם מחרוזות | [פתח](https://ahmadkais.github.io/python-course-hebrew/presentations/html/05_unit5_io_strings.html) | [הורד](presentations/pdf/05_unit5_io_strings.pdf) |
 | 6 | ביטויים בוליאניים ותנאים (if) | [פתח](https://ahmadkais.github.io/python-course-hebrew/presentations/html/06_unit6_boolean_if.html) | — |
-| 7 | לולאות (for, while) | [פתח](https://ahmadkais.github.io/python-course-hebrew/presentations/html/07_unit7_loops.html) | — |
+| 7 | לולאות (for, while), פירוק מספר לספרות | [פתח](https://ahmadkais.github.io/python-course-hebrew/presentations/html/07_unit7_loops.html) | — |
 | 8 | אופרטורים לוגיים וסיביים | [פתח](https://ahmadkais.github.io/python-course-hebrew/presentations/html/08_unit8_logical_bitwise.html) | — |
 | ★ | סיכום יחידות 0–5 | [פתח](https://ahmadkais.github.io/python-course-hebrew/presentations/html/summary_units_0-5.html) | — |
+
+## 🎯 הכנה לבחינה – שאלון 735911 (לפי ההנחיות של תשפ"ז)
+
+משרד החינוך פרסם את הנושאים שיש להדגיש בחלק הפייתון של הבחינה: פירוק מספר לספרות (`//`, `%`, `**` עם בסיס 10), לולאות מקוננות וזקיף, איברים סמוכים ורשימת מונים, מילון, קובצי txt ופעולות על מחרוזות.
+
+| חומר | קישור |
+|------|-------|
+| הנושאים שמשרד החינוך הדגיש, ודפי עזר לקבצים ולמחרוזות | [README](exam-prep/README.md) |
+| 26 תרגילים, תרגיל או יותר לכל נושא | [תרגילים](exam-prep/exercises.md) |
+| פתרונות, עם הפלט האמיתי של כל פתרון | [פתרונות](exam-prep/solutions.md) |
 
 ## 📚 חומרי לימוד (Study materials)
 

@@ -317,6 +317,8 @@ table.trace th{ background:var(--bg-titlebar); color:var(--ink-dim); font-family
 table.trace td{ font-family:var(--font-mono); color:var(--ink); direction:ltr; unicode-bidi:isolate; }
 table.trace td.t{ color:var(--green); } table.trace td.f{ color:var(--coral); }
 table.trace td.o{ color:var(--gold); }
+
+pre.code .tok-str, pre.code .tok-com{ unicode-bidi:isolate; }
 </style>
 
 <div class="stage">
@@ -420,13 +422,13 @@ const SLIDES = [
     "type": "content",
     "eyebrow": "תזכורת מהיחידה הקודמת",
     "title": "מה <span class='accent'>למדנו</span> ביחידה 6?",
-    "body": "\n  <ul class=\"plain\">\n    <li><strong class=\"hl2\">אופרטורים יחסיים</strong> (<code style=\"font-family:var(--font-mono)\">== != &lt; &gt; &lt;= &gt;=</code>) משווים ערכים ומחזירים <code style=\"font-family:var(--font-mono)\">True</code> או <code style=\"font-family:var(--font-mono)\">False</code></li>\n    <li>משפט <strong class=\"hl\">if</strong> מריץ בלוק מוזח רק אם התנאי מתקיים</li>\n    <li><strong class=\"hl\">else</strong> ו-<strong class=\"hl\">elif</strong> מוסיפים נתיבים חלופיים — Python עוצרת בתנאי הראשון שמתקיים</li>\n    <li>ההזחה (4 רווחים) היא חלק מהתחביר — היא קובעת אילו שורות שייכות לבלוק</li>\n  </ul>\n  <div class=\"callout tip\" style=\"margin-top:22px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>גם היום נשתמש בתנאים בוליאניים ובבלוקים מוזחים — אבל הפעם הבלוק לא ירוץ פעם אחת, אלא <strong>שוב ושוב</strong>.</p>\n  </div>"
+    "body": "\n  <ul class=\"plain\">\n    <li><strong class=\"hl2\">אופרטורים יחסיים</strong> (<code dir=\"ltr\" style=\"font-family:var(--font-mono)\">== != &lt; &gt; &lt;= &gt;=</code>) משווים ערכים ומחזירים <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">True</code> או <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">False</code></li>\n    <li>משפט <strong class=\"hl\">if</strong> מריץ בלוק מוזח רק אם התנאי מתקיים</li>\n    <li><strong class=\"hl\">else</strong> ו-<strong class=\"hl\">elif</strong> מוסיפים נתיבים חלופיים — Python עוצרת בתנאי הראשון שמתקיים</li>\n    <li>ההזחה (4 רווחים) היא חלק מהתחביר — היא קובעת אילו שורות שייכות לבלוק</li>\n  </ul>\n  <div class=\"callout tip\" style=\"margin-top:22px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>גם היום נשתמש בתנאים בוליאניים ובבלוקים מוזחים — אבל הפעם הבלוק לא ירוץ פעם אחת, אלא <strong>שוב ושוב</strong>.</p>\n  </div>"
   },
   {
     "type": "content",
     "eyebrow": "מטרות השיעור",
     "title": "מה <span class='accent'>נלמד</span> היום?",
-    "body": "\n  <ul class=\"plain\">\n    <li>מה זו <strong class=\"hl2\">לולאה</strong>, ולמה אי אפשר לכתוב תוכניות אמיתיות בלעדיה</li>\n    <li>לולאת <strong class=\"hl\">while</strong> — חזרה כל עוד תנאי מתקיים</li>\n    <li>לולאת <strong class=\"hl\">for</strong> ו-<strong class=\"hl2\">range()</strong> — חזרה מספר ידוע של פעמים</li>\n    <li>אופרטורי הצבה מקוצרים: <code style=\"font-family:var(--font-mono)\">+=</code>, <code style=\"font-family:var(--font-mono)\">-=</code>, <code style=\"font-family:var(--font-mono)\">*=</code></li>\n    <li><strong class=\"hl2\">שליטה בתהליך הביצוע</strong> של הלולאה: <code style=\"font-family:var(--font-mono)\">break</code> ו-<code style=\"font-family:var(--font-mono)\">continue</code></li>\n    <li>איך עוקבים אחרי לולאה בעזרת <strong class=\"hl\">טבלת מעקב</strong> (trace table)</li>\n  </ul>"
+    "body": "\n  <ul class=\"plain\">\n    <li>מה זו <strong class=\"hl2\">לולאה</strong>, ולמה אי אפשר לכתוב תוכניות אמיתיות בלעדיה</li>\n    <li>לולאת <strong class=\"hl\">while</strong> — חזרה כל עוד תנאי מתקיים</li>\n    <li>לולאת <strong class=\"hl\">for</strong> ו-<strong class=\"hl2\">range()</strong> — חזרה מספר ידוע של פעמים</li>\n    <li>אופרטורי הצבה מקוצרים: <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">+=</code>, <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">-=</code>, <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">*=</code></li>\n    <li><strong class=\"hl2\">פירוק מספר לספרות</strong> עם <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">%</code> ו-<code dir=\"ltr\" style=\"font-family:var(--font-mono)\">//</code>, וחזקה עם בסיס 10 (<code dir=\"ltr\" style=\"font-family:var(--font-mono)\">10 ** k</code>)</li>\n    <li><strong class=\"hl2\">שליטה בתהליך הביצוע</strong> של הלולאה: <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">break</code> ו-<code dir=\"ltr\" style=\"font-family:var(--font-mono)\">continue</code></li>\n    <li>איך עוקבים אחרי לולאה בעזרת <strong class=\"hl\">טבלת מעקב</strong> (trace table)</li>\n  </ul>"
   },
   {
     "type": "code",
@@ -538,19 +540,19 @@ const SLIDES = [
     "type": "content",
     "eyebrow": "הבעיה",
     "title": "ומה אם צריך <span class='accent'>1 עד 1000</span>?",
-    "body": "\n  <p class=\"body-text\">אלף שורות <code style=\"font-family:var(--font-mono)\">print</code>? ומה אם המשתמש הוא זה שמחליט עד איזה מספר? אי אפשר לכתוב מראש מספר שורות שלא ידוע.</p>\n  <p class=\"body-text\">מחשבים מצטיינים בדיוק בזה — <strong class=\"hl2\">לחזור על אותה פעולה</strong> מיליוני פעמים בלי להתעייף ובלי לטעות. אנחנו רק צריכים דרך להגיד להם: \"תעשה את זה שוב\".</p>\n  <div class=\"callout tip\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>המבנה שגורם לקטע קוד לרוץ שוב ושוב נקרא <strong>לולאה</strong> (loop). יחד עם התנאים מיחידה 6, זה החלק השני של <strong>בקרת הזרימה</strong>.</p>\n  </div>"
+    "body": "\n  <p class=\"body-text\">אלף שורות <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">print</code>? ומה אם המשתמש הוא זה שמחליט עד איזה מספר? אי אפשר לכתוב מראש מספר שורות שלא ידוע.</p>\n  <p class=\"body-text\">מחשבים מצטיינים בדיוק בזה — <strong class=\"hl2\">לחזור על אותה פעולה</strong> מיליוני פעמים בלי להתעייף ובלי לטעות. אנחנו רק צריכים דרך להגיד להם: \"תעשה את זה שוב\".</p>\n  <div class=\"callout tip\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>המבנה שגורם לקטע קוד לרוץ שוב ושוב נקרא <strong>לולאה</strong> (loop). יחד עם התנאים מיחידה 6, זה החלק השני של <strong>בקרת הזרימה</strong>.</p>\n  </div>"
   },
   {
     "type": "content",
     "eyebrow": "מבט על",
     "title": "שני סוגי <span class='accent'>לולאות</span> בפייתון",
-    "body": "\n  <div class=\"grid cols-2\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\">while</h3><p>חוזרת <strong>כל עוד תנאי מתקיים</strong>. מתאימה כשלא יודעים מראש כמה פעמים — למשל, עד שהמשתמש מקליד 0.</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\">for</h3><p>חוזרת <strong>על כל איבר ברצף</strong> — מספר ידוע של פעמים, או על כל תו במחרוזת.</p></div>\n  </div>\n  <p class=\"body-text\" style=\"margin-top:20px\">נתחיל מ-<strong class=\"hl2\">while</strong>, כי היא הכי דומה למשפט if שכבר מכירים.</p>"
+    "body": "\n  <div class=\"grid cols-2\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">while</span></h3><p>חוזרת <strong>כל עוד תנאי מתקיים</strong>. מתאימה כשלא יודעים מראש כמה פעמים — למשל, עד שהמשתמש מקליד 0.</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">for</span></h3><p>חוזרת <strong>על כל איבר ברצף</strong> — מספר ידוע של פעמים, או על כל תו במחרוזת.</p></div>\n  </div>\n  <p class=\"body-text\" style=\"margin-top:20px\">נתחיל מ-<strong class=\"hl2\">while</strong>, כי היא הכי דומה למשפט if שכבר מכירים.</p>"
   },
   {
     "type": "content",
     "eyebrow": "התחביר החדש",
     "title": "לולאת <span class='accent'>while</span> — כל עוד",
-    "body": "\n  <p class=\"body-text\">לולאת <code style=\"font-family:var(--font-mono)\">while</code> נראית בדיוק כמו <code style=\"font-family:var(--font-mono)\">if</code>: תנאי, נקודתיים, ובלוק מוזח. ההבדל: אחרי שהבלוק מסתיים, Python <strong class=\"hl2\">חוזרת לבדוק את התנאי שוב</strong>. כל עוד הוא <code style=\"font-family:var(--font-mono)\">True</code> — הבלוק רץ עוד פעם.</p>\n  <div class=\"grid cols-2\" style=\"margin-top:18px\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\">if תנאי:</h3><p>בודק פעם אחת. אם True — הבלוק רץ <strong>פעם אחת</strong> וממשיכים הלאה.</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\">while תנאי:</h3><p>בודק, מריץ, בודק שוב, מריץ שוב… יוצאים מהלולאה רק כשהתנאי הופך ל-<strong>False</strong>.</p></div>\n  </div>"
+    "body": "\n  <p class=\"body-text\">לולאת <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">while</code> נראית בדיוק כמו <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">if</code>: תנאי, נקודתיים, ובלוק מוזח. ההבדל: אחרי שהבלוק מסתיים, Python <strong class=\"hl2\">חוזרת לבדוק את התנאי שוב</strong>. כל עוד הוא <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">True</code> — הבלוק רץ עוד פעם.</p>\n  <div class=\"grid cols-2\" style=\"margin-top:18px\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">if תנאי:</span></h3><p>בודק פעם אחת. אם True — הבלוק רץ <strong>פעם אחת</strong> וממשיכים הלאה.</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">while תנאי:</span></h3><p>בודק, מריץ, בודק שוב, מריץ שוב… יוצאים מהלולאה רק כשהתנאי הופך ל-<strong>False</strong>.</p></div>\n  </div>"
   },
   {
     "type": "code",
@@ -696,7 +698,7 @@ const SLIDES = [
     "type": "content",
     "eyebrow": "אנטומיה של לולאה",
     "title": "שלושת החלקים של <span class='accent'>כל</span> לולאת while",
-    "body": "\n  <div class=\"grid cols-3\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\">i = 1</h3><p><strong>אתחול</strong> — לפני הלולאה, נותנים למשתנה הבקרה ערך התחלתי</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\">while i &lt;= 5:</h3><p><strong>תנאי</strong> — נבדק לפני כל סיבוב. ברגע שהוא False, הלולאה נגמרת</p></div>\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\">i = i + 1</h3><p><strong>עדכון</strong> — בתוך הלולאה, משנים את המשתנה כך שבסוף התנאי ייכשל</p></div>\n  </div>\n  <div class=\"callout warn\" style=\"margin-top:18px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-warn\"/></svg>\n    <p>אם חסר אחד משלושת החלקים — הלולאה כמעט בטוח לא תעשה מה שרציתם. הכי מסוכן: לשכוח את <strong>העדכון</strong>.</p>\n  </div>"
+    "body": "\n  <div class=\"grid cols-3\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">i = 1</span></h3><p><strong>אתחול</strong> — לפני הלולאה, נותנים למשתנה הבקרה ערך התחלתי</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">while i &lt;= 5:</span></h3><p><strong>תנאי</strong> — נבדק לפני כל סיבוב. ברגע שהוא False, הלולאה נגמרת</p></div>\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">i = i + 1</span></h3><p><strong>עדכון</strong> — בתוך הלולאה, משנים את המשתנה כך שבסוף התנאי ייכשל</p></div>\n  </div>\n  <div class=\"callout warn\" style=\"margin-top:18px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-warn\"/></svg>\n    <p>אם חסר אחד משלושת החלקים — הלולאה כמעט בטוח לא תעשה מה שרציתם. הכי מסוכן: לשכוח את <strong>העדכון</strong>.</p>\n  </div>"
   },
   {
     "type": "code",
@@ -792,7 +794,7 @@ const SLIDES = [
     "type": "content",
     "eyebrow": "לולאה אינסופית",
     "title": "ה<span class='accent'>תנאי</span> אף פעם לא נכשל",
-    "body": "\n  <p class=\"body-text\"><code style=\"font-family:var(--font-mono)\">i</code> נשאר 1 לנצח, ולכן <code style=\"font-family:var(--font-mono)\">i &lt;= 5</code> תמיד <code style=\"font-family:var(--font-mono)\">True</code>. התוכנית תמשיך להדפיס עד שנעצור אותה בכוח. זה נקרא <strong class=\"hl2\">לולאה אינסופית</strong> (infinite loop) — הבאג הכי נפוץ בלולאות.</p>\n  <div class=\"callout tip\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>אם התוכנית \"נתקעה\" ולא מגיבה — לחצו <strong>Ctrl + C</strong> בטרמינל, או על כפתור העצירה האדום ב-Thonny / VS Code. ואז שאלו: איזה משתנה היה אמור להשתנות, ולמה הוא לא השתנה?</p>\n  </div>"
+    "body": "\n  <p class=\"body-text\"><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">i</code> נשאר 1 לנצח, ולכן <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">i &lt;= 5</code> תמיד <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">True</code>. התוכנית תמשיך להדפיס עד שנעצור אותה בכוח. זה נקרא <strong class=\"hl2\">לולאה אינסופית</strong> (infinite loop) — הבאג הכי נפוץ בלולאות.</p>\n  <div class=\"callout tip\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>אם התוכנית \"נתקעה\" ולא מגיבה — לחצו <strong>Ctrl + C</strong> בטרמינל, או על כפתור העצירה האדום ב-Thonny / VS Code. ואז שאלו: איזה משתנה היה אמור להשתנות, ולמה הוא לא השתנה?</p>\n  </div>"
   },
   {
     "type": "exercises",
@@ -818,7 +820,7 @@ const SLIDES = [
     "type": "content",
     "eyebrow": "קיצור שימושי",
     "title": "אופרטורי הצבה <span class='accent'>מקוצרים</span>",
-    "body": "\n  <p class=\"body-text\">השורה <code style=\"font-family:var(--font-mono)\">i = i + 1</code> כל כך נפוצה, שיש לה קיצור: <code style=\"font-family:var(--font-mono)\">i += 1</code>. הקיצור עובד עם כל האופרטורים החשבוניים מיחידה 3.</p>\n  <div class=\"grid cols-3\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\">i += 1</h3><p>זהה ל-<code>i = i + 1</code></p></div>\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\">i -= 2</h3><p>זהה ל-<code>i = i - 2</code></p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\">total *= 3</h3><p>זהה ל-<code>total = total * 3</code></p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\">x /= 2</h3><p>זהה ל-<code>x = x / 2</code></p></div>\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\">x //= 2</h3><p>זהה ל-<code>x = x // 2</code></p></div>\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\">x %= 10</h3><p>זהה ל-<code>x = x % 10</code></p></div>\n  </div>"
+    "body": "\n  <p class=\"body-text\">השורה <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">i = i + 1</code> כל כך נפוצה, שיש לה קיצור: <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">i += 1</code>. הקיצור עובד עם כל האופרטורים החשבוניים מיחידה 3.</p>\n  <div class=\"grid cols-3\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">i += 1</span></h3><p>זהה ל-<code>i = i + 1</code></p></div>\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">i -= 2</span></h3><p>זהה ל-<code>i = i - 2</code></p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">total *= 3</span></h3><p>זהה ל-<code>total = total * 3</code></p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">x /= 2</span></h3><p>זהה ל-<code>x = x / 2</code></p></div>\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">x //= 2</span></h3><p>זהה ל-<code>x = x // 2</code></p></div>\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">x %= 10</span></h3><p>זהה ל-<code>x = x % 10</code></p></div>\n  </div>"
   },
   {
     "type": "code",
@@ -1006,7 +1008,7 @@ const SLIDES = [
     "type": "content",
     "eyebrow": "תבנית הצובר",
     "title": "משתנה <span class='accent'>צובר</span> (accumulator)",
-    "body": "\n  <p class=\"body-text\">זו תבנית שתפגשו בכל מקום: משתנה שמתחיל מערך \"ריק\" (0 לסכום, 1 למכפלה, <code style=\"font-family:var(--font-mono)\">\"\"</code> למחרוזת), ובכל סיבוב <strong class=\"hl2\">מוסיפים אליו</strong> עוד קצת.</p>\n  <table class=\"trace\">\n    <tr><th>סיבוב</th><th>i</th><th>total לפני</th><th>total += i</th><th>total אחרי</th></tr>\n    <tr><td>1</td><td>1</td><td>0</td><td>0 + 1</td><td class=\"o\">1</td></tr>\n    <tr><td>2</td><td>2</td><td>1</td><td>1 + 2</td><td class=\"o\">3</td></tr>\n    <tr><td>3</td><td>3</td><td>3</td><td>3 + 3</td><td class=\"o\">6</td></tr>\n    <tr><td>4</td><td>4</td><td>6</td><td>6 + 4</td><td class=\"o\">10</td></tr>\n    <tr><td>…</td><td>…</td><td>…</td><td>…</td><td>…</td></tr>\n    <tr><td>10</td><td>10</td><td>45</td><td>45 + 10</td><td class=\"o\">55</td></tr>\n  </table>\n  <div class=\"callout warn\" style=\"margin-top:14px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-warn\"/></svg>\n    <p>האתחול <code style=\"font-family:var(--font-mono)\">total = 0</code> חייב להיות <strong>לפני</strong> הלולאה. אם הוא בתוכה — הסכום מתאפס בכל סיבוב.</p>\n  </div>"
+    "body": "\n  <p class=\"body-text\">זו תבנית שתפגשו בכל מקום: משתנה שמתחיל מערך \"ריק\" (0 לסכום, 1 למכפלה, <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">\"\"</code> למחרוזת), ובכל סיבוב <strong class=\"hl2\">מוסיפים אליו</strong> עוד קצת.</p>\n  <table class=\"trace\">\n    <tr><th>סיבוב</th><th>i</th><th>total לפני</th><th>total += i</th><th>total אחרי</th></tr>\n    <tr><td>1</td><td>1</td><td>0</td><td>0 + 1</td><td class=\"o\">1</td></tr>\n    <tr><td>2</td><td>2</td><td>1</td><td>1 + 2</td><td class=\"o\">3</td></tr>\n    <tr><td>3</td><td>3</td><td>3</td><td>3 + 3</td><td class=\"o\">6</td></tr>\n    <tr><td>4</td><td>4</td><td>6</td><td>6 + 4</td><td class=\"o\">10</td></tr>\n    <tr><td>…</td><td>…</td><td>…</td><td>…</td><td>…</td></tr>\n    <tr><td>10</td><td>10</td><td>45</td><td>45 + 10</td><td class=\"o\">55</td></tr>\n  </table>\n  <div class=\"callout warn\" style=\"margin-top:14px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-warn\"/></svg>\n    <p>האתחול <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">total = 0</code> חייב להיות <strong>לפני</strong> הלולאה. אם הוא בתוכה — הסכום מתאפס בכל סיבוב.</p>\n  </div>"
   },
   {
     "type": "code",
@@ -1238,7 +1240,7 @@ const SLIDES = [
     "type": "content",
     "eyebrow": "שימו לב",
     "title": "ערך <span class='accent'>עצירה</span> (sentinel)",
-    "body": "\n  <p class=\"body-text\">הערך 0 כאן הוא <strong class=\"hl2\">ערך עצירה</strong> — ערך מיוחד שמסמן \"סיימתי\". שימו לב לשני דברים בקוד:</p>\n  <ul class=\"plain\">\n    <li>יש <code style=\"font-family:var(--font-mono)\">input()</code> אחד <strong class=\"hl\">לפני</strong> הלולאה (כדי שיהיה מה לבדוק בתנאי בפעם הראשונה) ואחד <strong class=\"hl\">בסוף</strong> כל סיבוב</li>\n    <li>הערך 0 עצמו <strong class=\"hl2\">לא נכנס לסכום</strong> — ברגע שהוא נקלט, התנאי נכשל ויוצאים</li>\n  </ul>"
+    "body": "\n  <p class=\"body-text\">הערך 0 כאן הוא <strong class=\"hl2\">ערך עצירה</strong> — ערך מיוחד שמסמן \"סיימתי\". שימו לב לשני דברים בקוד:</p>\n  <ul class=\"plain\">\n    <li>יש <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">input()</code> אחד <strong class=\"hl\">לפני</strong> הלולאה (כדי שיהיה מה לבדוק בתנאי בפעם הראשונה) ואחד <strong class=\"hl\">בסוף</strong> כל סיבוב</li>\n    <li>הערך 0 עצמו <strong class=\"hl2\">לא נכנס לסכום</strong> — ברגע שהוא נקלט, התנאי נכשל ויוצאים</li>\n  </ul>"
   },
   {
     "type": "code",
@@ -1474,7 +1476,7 @@ const SLIDES = [
     "type": "content",
     "eyebrow": "הצצה קדימה",
     "title": "מה זה ה-<span class='accent'>or</span> הזה?",
-    "body": "\n  <p class=\"body-text\"><code style=\"font-family:var(--font-mono)\">age &lt; 0 or age &gt; 120</code> פירושו: \"הגיל שלילי <strong class=\"hl2\">או</strong> גדול מ-120\". <code style=\"font-family:var(--font-mono)\">or</code> מחבר שני תנאים בוליאניים לתנאי אחד.</p>\n  <div class=\"callout tip\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p><code style=\"font-family:var(--font-mono)\">and</code>, <code style=\"font-family:var(--font-mono)\">or</code> ו-<code style=\"font-family:var(--font-mono)\">not</code> הם <strong>אופרטורים לוגיים</strong> — נלמד אותם לעומק ביחידה 8. בינתיים מספיק להבין ש-<code style=\"font-family:var(--font-mono)\">or</code> מחזיר True אם <strong>לפחות אחד</strong> מהתנאים מתקיים.</p>\n  </div>"
+    "body": "\n  <p class=\"body-text\"><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">age &lt; 0 or age &gt; 120</code> פירושו: \"הגיל שלילי <strong class=\"hl2\">או</strong> גדול מ-120\". <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">or</code> מחבר שני תנאים בוליאניים לתנאי אחד.</p>\n  <div class=\"callout tip\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">and</code>, <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">or</code> ו-<code dir=\"ltr\" style=\"font-family:var(--font-mono)\">not</code> הם <strong>אופרטורים לוגיים</strong> — נלמד אותם לעומק ביחידה 8. בינתיים מספיק להבין ש-<code dir=\"ltr\" style=\"font-family:var(--font-mono)\">or</code> מחזיר True אם <strong>לפחות אחד</strong> מהתנאים מתקיים.</p>\n  </div>"
   },
   {
     "type": "exercises",
@@ -1502,9 +1504,969 @@ const SLIDES = [
   },
   {
     "type": "content",
+    "eyebrow": "נושא חשוב לבחינה · while",
+    "title": "פירוק מספר <span class='accent'>לספרות</span>",
+    "body": "\n  <p class=\"body-text\">שני אופרטורים מיחידה 3 עושים את כל העבודה. ניקח את המספר <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">4725</code>:</p>\n  <table class=\"trace\">\n    <tr><th>הפעולה</th><th>התוצאה</th><th>מה קיבלנו?</th></tr>\n    <tr><td>4725 % 10</td><td class=\"o\">5</td><td style=\"font-family:var(--font-display);direction:rtl\">הספרה <strong>האחרונה</strong> (שארית החלוקה ב-10)</td></tr>\n    <tr><td>4725 // 10</td><td class=\"o\">472</td><td style=\"font-family:var(--font-display);direction:rtl\">המספר <strong>בלי</strong> הספרה האחרונה (חילוק בשלמים)</td></tr>\n  </table>\n  <div class=\"callout tip\" style=\"margin-top:16px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>חוזרים על שני הצעדים בלולאה: לוקחים את הספרה האחרונה עם <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">% 10</code>, ו\"מורידים\" אותה עם <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">// 10</code>. כשהמספר הופך ל-<code dir=\"ltr\" style=\"font-family:var(--font-mono)\">0</code> — עברנו על כל הספרות. זו לולאת <strong>while</strong>, כי מספר הספרות לא ידוע מראש.</p>\n  </div>"
+  },
+  {
+    "type": "code",
+    "eyebrow": "פירוק לספרות · התבנית",
+    "title": "סכום <span class='accent'>הספרות</span>",
+    "desc": "בכל סיבוב: ספרה אחרונה לצובר, ואז מורידים אותה:",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "num"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "4725"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "total"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "0"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-kw",
+        "c": "while"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "num"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "&gt;"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "0"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "digit"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "num"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "%"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "10"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "total"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "+="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "digit"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "num"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "num"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "//"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "10"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"סכום הספרות:\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "total"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "סכום הספרות: 18"
+  },
+  {
+    "type": "content",
+    "eyebrow": "טבלת מעקב · פירוק לספרות",
+    "title": "עוקבים אחרי <span class='accent'>num</span>",
+    "body": "\n  <table class=\"trace\">\n    <tr><th>סיבוב</th><th>num בהתחלה</th><th>digit = num % 10</th><th>total</th><th>num // 10</th></tr>\n    <tr><td>1</td><td>4725</td><td>5</td><td>5</td><td>472</td></tr>\n    <tr><td>2</td><td>472</td><td>2</td><td>7</td><td>47</td></tr>\n    <tr><td>3</td><td>47</td><td>7</td><td>14</td><td>4</td></tr>\n    <tr><td>4</td><td>4</td><td>4</td><td class=\"o\">18</td><td>0</td></tr>\n    <tr><td>—</td><td>0</td><td colspan=\"3\" class=\"f\">0 &gt; 0 הוא False — יוצאים</td></tr>\n  </table>\n  <div class=\"callout warn\" style=\"margin-top:14px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-warn\"/></svg>\n    <p>הספרות יוצאות <strong>מהסוף להתחלה</strong>: 5, 2, 7, 4. ואם רוצים לשמור את המספר המקורי, מעתיקים אותו קודם למשתנה אחר (<code dir=\"ltr\" style=\"font-family:var(--font-mono)\">temp = num</code>).</p>\n  </div>"
+  },
+  {
+    "type": "code",
+    "eyebrow": "פירוק לספרות · עוד שתי תבניות",
+    "title": "ספירת ספרות ו<span class='accent'>היפוך</span> מספר",
+    "desc": "באותה לולאה: סופרים את הספרות, ובונים את המספר ההפוך (כל ספרה חדשה נכנסת מימין: כופלים ב-10 ומוסיפים):",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "num"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "4725"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "count"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "0"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "rev"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "0"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-kw",
+        "c": "while"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "num"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "&gt;"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "0"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "digit"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "num"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "%"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "10"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "count"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "+="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "1"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "rev"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "rev"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "*"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "10"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "+"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "digit"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "num"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "num"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "//"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "10"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"מספר הספרות:\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "count"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"המספר ההפוך:\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "rev"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "מספר הספרות: 4\nהמספר ההפוך: 5274"
+  },
+  {
+    "type": "content",
+    "eyebrow": "חזקה עם בסיס 10",
+    "title": "<span class='accent'>10 ** k</span> — לחתוך כמה ספרות בבת אחת",
+    "body": "\n  <p class=\"body-text\"><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">10 ** k</code> הוא 1 ואחריו k אפסים (<code dir=\"ltr\" style=\"font-family:var(--font-mono)\">10 ** 3</code> = 1000). איתו אפשר לעבוד עם כמה ספרות יחד. שוב עם <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">4725</code>:</p>\n  <table class=\"trace\">\n    <tr><th>הביטוי</th><th>התוצאה</th><th>מה קיבלנו?</th></tr>\n    <tr><td>4725 // 10 ** 2</td><td class=\"o\">47</td><td style=\"font-family:var(--font-display);direction:rtl\">בלי 2 הספרות האחרונות</td></tr>\n    <tr><td>4725 % 10 ** 2</td><td class=\"o\">25</td><td style=\"font-family:var(--font-display);direction:rtl\">רק 2 הספרות האחרונות</td></tr>\n    <tr><td>4725 // 10 ** 3</td><td class=\"o\">4</td><td style=\"font-family:var(--font-display);direction:rtl\">הספרה <strong>הראשונה</strong> (במספר של 4 ספרות)</td></tr>\n    <tr><td>4725 // 10 ** 1 % 10</td><td class=\"o\">2</td><td style=\"font-family:var(--font-display);direction:rtl\">ספרת <strong>העשרות</strong>: חותכים ספרה אחת, ולוקחים את האחרונה</td></tr>\n  </table>\n  <div class=\"callout tip\" style=\"margin-top:14px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">**</code> מחושב <strong>לפני</strong> <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">//</code> ו-<code dir=\"ltr\" style=\"font-family:var(--font-mono)\">%</code>, ולכן <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">4725 // 10 ** 2</code> הוא <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">4725 // 100</code>.</p>\n  </div>"
+  },
+  {
+    "type": "code",
+    "eyebrow": "חזקה עם בסיס 10 · דוגמה",
+    "title": "כל ספרה לפי <span class='accent'>המיקום</span> שלה",
+    "desc": "k הוא המיקום מימין (0 = אחדות, 1 = עשרות...). כך מפרקים את המספר משמאל לימין:",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "num"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "4725"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "k"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "range"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-num",
+        "c": "3"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "-"
+      },
+      {
+        "t": "tok-num",
+        "c": "1"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "-"
+      },
+      {
+        "t": "tok-num",
+        "c": "1"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "digit"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "num"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "//"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "10"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "**"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "k"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "%"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "10"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"ספרה במקום\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "k"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\":\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "digit"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"שווה\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "digit"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "*"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "10"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "**"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "k"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "ספרה במקום 3 : 4 שווה 4000\nספרה במקום 2 : 7 שווה 700\nספרה במקום 1 : 2 שווה 20\nספרה במקום 0 : 5 שווה 5"
+  },
+  {
+    "type": "exercises",
+    "eyebrow": "תרגול · פירוק לספרות",
+    "title": "תרגלו <span class='accent'>// ו-%</span>",
+    "desc": "כל המשימות: קולטים מספר שלם חיובי מהמשתמש.",
+    "items": [
+      {
+        "tag": "easy",
+        "text": "הדפיסו את ספרת האחדות ואת ספרת העשרות של המספר."
+      },
+      {
+        "tag": "easy",
+        "text": "הדפיסו כמה ספרות <strong>זוגיות</strong> יש במספר."
+      },
+      {
+        "tag": "med",
+        "text": "הדפיסו את הספרה <strong>הגדולה ביותר</strong> במספר."
+      },
+      {
+        "tag": "med",
+        "text": "בדקו אם המספר הוא <strong>פלינדרום</strong> (נקרא אותו דבר משני הכיוונים, כמו 12321). רמז: השוו אותו למספר ההפוך."
+      },
+      {
+        "tag": "hard",
+        "text": "קלטו מספרים עד שמוקלד 0 (ערך עצירה). לכל מספר הדפיסו את סכום הספרות שלו, ובסוף הדפיסו את המספר שסכום הספרות שלו הוא הגדול ביותר. (לולאה בתוך לולאה!)"
+      },
+      {
+        "tag": "hard",
+        "text": "בלי לולאה: קלטו מספר בן 4 ספרות, והדפיסו את הספרה הראשונה ואת האחרונה בעזרת <code>10 ** 3</code>, <code>//</code> ו-<code>%</code>."
+      }
+    ]
+  },
+  {
+    "type": "content",
     "eyebrow": "הלולאה השנייה",
     "title": "לולאת <span class='accent'>for</span> — מספר ידוע של פעמים",
-    "body": "\n  <p class=\"body-text\">כשאנחנו <strong class=\"hl2\">יודעים מראש</strong> כמה סיבובים צריך — 5 פעמים, 100 פעמים, פעם לכל תו במחרוזת — לולאת <code style=\"font-family:var(--font-mono)\">for</code> קצרה ובטוחה יותר: אין אתחול, אין עדכון, ואין סיכוי ללולאה אינסופית.</p>\n  <div class=\"callout tip\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>מבנה: <code style=\"font-family:var(--font-mono)\">for משתנה in רצף:</code> — המשתנה מקבל, סיבוב אחרי סיבוב, כל ערך ברצף. הרצף הכי נפוץ הוא <code style=\"font-family:var(--font-mono)\">range()</code>.</p>\n  </div>"
+    "body": "\n  <p class=\"body-text\">כשאנחנו <strong class=\"hl2\">יודעים מראש</strong> כמה סיבובים צריך — 5 פעמים, 100 פעמים, פעם לכל תו במחרוזת — לולאת <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">for</code> קצרה ובטוחה יותר: אין אתחול, אין עדכון, ואין סיכוי ללולאה אינסופית.</p>\n  <div class=\"callout tip\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>מבנה: <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">for משתנה in רצף:</code> — המשתנה מקבל, סיבוב אחרי סיבוב, כל ערך ברצף. הרצף הכי נפוץ הוא <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">range()</code>.</p>\n  </div>"
   },
   {
     "type": "code",
@@ -1584,13 +2546,13 @@ const SLIDES = [
     "type": "content",
     "eyebrow": "נקודה קריטית",
     "title": "<span class='accent'>range(5)</span> — מ-0, ו-5 לא כלול",
-    "body": "\n  <div class=\"callout warn\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-warn\"/></svg>\n    <p><code style=\"font-family:var(--font-mono)\">range(5)</code> מייצר את הערכים <strong>0, 1, 2, 3, 4</strong> — חמישה מספרים, אבל 5 עצמו <strong>לא</strong> ביניהם. בדיוק כמו אינדקסים של מחרוזת מיחידה 5: מתחילים מ-0.</p>\n  </div>\n  <p class=\"body-text\" style=\"margin-top:18px\">זה מבלבל בהתחלה, אבל יש בזה היגיון: <code style=\"font-family:var(--font-mono)\">range(n)</code> תמיד נותן <strong class=\"hl2\">בדיוק n ערכים</strong>, ולכן <code style=\"font-family:var(--font-mono)\">for i in range(5)</code> = \"חזור 5 פעמים\".</p>"
+    "body": "\n  <div class=\"callout warn\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-warn\"/></svg>\n    <p><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">range(5)</code> מייצר את הערכים <strong>0, 1, 2, 3, 4</strong> — חמישה מספרים, אבל 5 עצמו <strong>לא</strong> ביניהם. בדיוק כמו אינדקסים של מחרוזת מיחידה 5: מתחילים מ-0.</p>\n  </div>\n  <p class=\"body-text\" style=\"margin-top:18px\">זה מבלבל בהתחלה, אבל יש בזה היגיון: <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">range(n)</code> תמיד נותן <strong class=\"hl2\">בדיוק n ערכים</strong>, ולכן <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">for i in range(5)</code> = \"חזור 5 פעמים\".</p>"
   },
   {
     "type": "content",
     "eyebrow": "שלוש צורות",
     "title": "הפונקציה <span class='accent'>range()</span>",
-    "body": "\n  <div class=\"grid cols-3\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\">range(stop)</h3><p>מ-0 עד stop (לא כולל).<br><code>range(4)</code> → 0, 1, 2, 3</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\">range(start, stop)</h3><p>מ-start עד stop (לא כולל).<br><code>range(1, 6)</code> → 1, 2, 3, 4, 5</p></div>\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\">range(start, stop, step)</h3><p>בקפיצות של step.<br><code>range(0, 10, 2)</code> → 0, 2, 4, 6, 8</p></div>\n  </div>\n  <p class=\"body-text\" style=\"margin-top:18px\">step יכול להיות גם <strong class=\"hl2\">שלילי</strong> — ואז סופרים לאחור: <code style=\"font-family:var(--font-mono)\">range(5, 0, -1)</code> → 5, 4, 3, 2, 1.</p>"
+    "body": "\n  <div class=\"grid cols-3\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">range(stop)</span></h3><p>מ-0 עד stop (לא כולל).<br><code>range(4)</code> → 0, 1, 2, 3</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">range(start, stop)</span></h3><p>מ-start עד stop (לא כולל).<br><code>range(1, 6)</code> → 1, 2, 3, 4, 5</p></div>\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">range(start, stop, step)</span></h3><p>בקפיצות של step.<br><code>range(0, 10, 2)</code> → 0, 2, 4, 6, 8</p></div>\n  </div>\n  <p class=\"body-text\" style=\"margin-top:18px\">step יכול להיות גם <strong class=\"hl2\">שלילי</strong> — ואז סופרים לאחור: <code style=\"font-family:var(--font-mono)\">range(5, 0, -1)</code> → 5, 4, 3, 2, 1.</p>"
   },
   {
     "type": "code",
@@ -2542,13 +3504,13 @@ const SLIDES = [
     "type": "content",
     "eyebrow": "מתי מה?",
     "title": "<span class='accent'>for</span> או <span class='accent'>while</span>?",
-    "body": "\n  <div class=\"grid cols-2\">\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\">for</h3><p>יודעים מראש כמה סיבובים: \"10 פעמים\", \"לכל תו במילה\", \"מ-1 עד n\". קצר, בטוח, קריא.</p></div>\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\">while</h3><p>לא יודעים מראש: \"עד שהמשתמש מקליד 0\", \"עד שהקלט תקין\", \"עד שהניחוש נכון\". כל מה שתלוי במה שקורה תוך כדי.</p></div>\n  </div>\n  <div class=\"callout tip\" style=\"margin-top:18px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>כלל אצבע: אם אתם יכולים להשלים את המשפט \"חזור <strong>___ פעמים</strong>\" — זה for. אם המשפט הוא \"חזור <strong>כל עוד ___</strong>\" — זה while.</p>\n  </div>"
+    "body": "\n  <div class=\"grid cols-2\">\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">for</span></h3><p>יודעים מראש כמה סיבובים: \"10 פעמים\", \"לכל תו במילה\", \"מ-1 עד n\". קצר, בטוח, קריא.</p></div>\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">while</span></h3><p>לא יודעים מראש: \"עד שהמשתמש מקליד 0\", \"עד שהקלט תקין\", \"עד שהניחוש נכון\". כל מה שתלוי במה שקורה תוך כדי.</p></div>\n  </div>\n  <div class=\"callout tip\" style=\"margin-top:18px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>כלל אצבע: אם אתם יכולים להשלים את המשפט \"חזור <strong>___ פעמים</strong>\" — זה for. אם המשפט הוא \"חזור <strong>כל עוד ___</strong>\" — זה while.</p>\n  </div>"
   },
   {
     "type": "content",
     "eyebrow": "שליטה בתהליך הביצוע",
     "title": "לפעמים צריך <span class='accent'>לצאת באמצע</span>",
-    "body": "\n  <p class=\"body-text\">בדרך כלל לולאה נגמרת כשהתנאי נכשל או כשה-range נגמר. אבל יש שתי מילות מפתח שמאפשרות לשלוט בזרימה <strong class=\"hl2\">מתוך</strong> הבלוק:</p>\n  <div class=\"grid cols-2\" style=\"margin-top:14px\">\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\">break</h3><p><strong>יוצאים מהלולאה מיד</strong> — לא משנה מה התנאי אומר. ממשיכים לשורה שאחרי הלולאה.</p></div>\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\">continue</h3><p><strong>מדלגים על שאר הסיבוב הנוכחי</strong> וקופצים ישר לסיבוב הבא (לבדיקת התנאי / לערך הבא ב-range).</p></div>\n  </div>"
+    "body": "\n  <p class=\"body-text\">בדרך כלל לולאה נגמרת כשהתנאי נכשל או כשה-range נגמר. אבל יש שתי מילות מפתח שמאפשרות לשלוט בזרימה <strong class=\"hl2\">מתוך</strong> הבלוק:</p>\n  <div class=\"grid cols-2\" style=\"margin-top:14px\">\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">break</span></h3><p><strong>יוצאים מהלולאה מיד</strong> — לא משנה מה התנאי אומר. ממשיכים לשורה שאחרי הלולאה.</p></div>\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">continue</span></h3><p><strong>מדלגים על שאר הסיבוב הנוכחי</strong> וקופצים ישר לסיבוב הבא (לבדיקת התנאי / לערך הבא ב-range).</p></div>\n  </div>"
   },
   {
     "type": "code",
@@ -3144,7 +4106,7 @@ const SLIDES = [
     "type": "content",
     "eyebrow": "שימו לב",
     "title": "<span class='accent'>break</span> — במידה",
-    "body": "\n  <div class=\"callout warn\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-warn\"/></svg>\n    <p><code style=\"font-family:var(--font-mono)\">break</code> נוח, אבל לולאה עם הרבה נקודות יציאה קשה לקריאה — צריך לחפש בכל הבלוק כדי להבין מתי היא נגמרת. אם אפשר לנסח את תנאי היציאה בשורת ה-while עצמה, לרוב עדיף.</p>\n  </div>\n  <div class=\"callout tip\" style=\"margin-top:16px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p><code style=\"font-family:var(--font-mono)\">break</code> ו-<code style=\"font-family:var(--font-mono)\">continue</code> משפיעים רק על הלולאה <strong>הכי פנימית</strong> שהם נמצאים בה. בלולאות מקוננות — נראה מיד — זה חשוב.</p>\n  </div>"
+    "body": "\n  <div class=\"callout warn\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-warn\"/></svg>\n    <p><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">break</code> נוח, אבל לולאה עם הרבה נקודות יציאה קשה לקריאה — צריך לחפש בכל הבלוק כדי להבין מתי היא נגמרת. אם אפשר לנסח את תנאי היציאה בשורת ה-while עצמה, לרוב עדיף.</p>\n  </div>\n  <div class=\"callout tip\" style=\"margin-top:16px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">break</code> ו-<code dir=\"ltr\" style=\"font-family:var(--font-mono)\">continue</code> משפיעים רק על הלולאה <strong>הכי פנימית</strong> שהם נמצאים בה. בלולאות מקוננות — נראה מיד — זה חשוב.</p>\n  </div>"
   },
   {
     "type": "exercises",
@@ -3382,7 +4344,7 @@ const SLIDES = [
     "type": "code",
     "eyebrow": "דוגמה קלאסית",
     "title": "לוח <span class='accent'>הכפל</span>",
-    "desc": "הלולאה החיצונית עוברת על השורות, הפנימית על העמודות. ה-print() הריק יורד שורה בסוף כל שורה:",
+    "desc": "הלולאה החיצונית עוברת על השורות, הפנימית על העמודות. ה-<bdi dir=\"ltr\">print()</bdi> הריק יורד שורה בסוף כל שורה:",
     "code": [
       {
         "t": "tok-kw",
@@ -3682,7 +4644,7 @@ const SLIDES = [
     "type": "content",
     "eyebrow": "שימו לב",
     "title": "בלי לולאה פנימית <span class='accent'>בכלל</span>?",
-    "body": "\n  <p class=\"body-text\">בדוגמה האחרונה השתמשנו ב-<code style=\"font-family:var(--font-mono)\">\"*\" * row</code> — פעולת החזרה על מחרוזות מיחידה 5 — במקום לולאה פנימית. שתי הדרכים נכונות; זו סתם קצרה יותר.</p>\n  <div class=\"callout tip\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>נסו לכתוב את אותו משולש <strong>עם</strong> לולאה פנימית: <code style=\"font-family:var(--font-mono)\">for star in range(row): print(\"*\", end=\"\")</code> ואז <code style=\"font-family:var(--font-mono)\">print()</code>. חשוב להבין את שתי הדרכים.</p>\n  </div>"
+    "body": "\n  <p class=\"body-text\">בדוגמה האחרונה השתמשנו ב-<code dir=\"ltr\" style=\"font-family:var(--font-mono)\">\"*\" * row</code> — פעולת החזרה על מחרוזות מיחידה 5 — במקום לולאה פנימית. שתי הדרכים נכונות; זו סתם קצרה יותר.</p>\n  <div class=\"callout tip\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>נסו לכתוב את אותו משולש <strong>עם</strong> לולאה פנימית: <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">for star in range(row): print(\"*\", end=\"\")</code> ואז <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">print()</code>. חשוב להבין את שתי הדרכים.</p>\n  </div>"
   },
   {
     "type": "exercises",
@@ -3822,7 +4784,7 @@ const SLIDES = [
     "type": "content",
     "eyebrow": "לפני שסוגרים",
     "title": "שישה דברים <span class='accent'>לזכור</span> מהיום",
-    "body": "\n  <div class=\"grid cols-3\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\">while תנאי:</h3><p>חוזר כל עוד התנאי True — אתחול, תנאי, עדכון</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\">for i in range(n):</h3><p>חוזר n פעמים, i מקבל 0 עד n-1</p></div>\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\">range(a, b, step)</h3><p>מ-a עד b (לא כולל), בקפיצות step</p></div>\n    <div class=\"card green\"><h3 style=\"font-family:var(--font-mono)\">total += i</h3><p>תבנית הצובר — האתחול תמיד לפני הלולאה</p></div>\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\">break / continue</h3><p>יציאה מיידית / דילוג לסיבוב הבא</p></div>\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\">טבלת מעקב</h3><p>סיבוב אחרי סיבוב — כך מבינים (ומוצאים באגים) בכל לולאה</p></div>\n  </div>"
+    "body": "\n  <div class=\"grid cols-3\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">while תנאי:</span></h3><p>חוזר כל עוד התנאי True — אתחול, תנאי, עדכון</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">for i in range(n):</span></h3><p>חוזר n פעמים, i מקבל 0 עד n-1</p></div>\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">range(a, b, step)</span></h3><p>מ-a עד b (לא כולל), בקפיצות step</p></div>\n    <div class=\"card green\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">total += i</span></h3><p>תבנית הצובר — האתחול תמיד לפני הלולאה</p></div>\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">break / continue</span></h3><p>יציאה מיידית / דילוג לסיבוב הבא</p></div>\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">טבלת מעקב</span></h3><p>סיבוב אחרי סיבוב — כך מבינים (ומוצאים באגים) בכל לולאה</p></div>\n  </div>"
   },
   {
     "type": "title",
@@ -3953,4 +4915,32 @@ function buildSlide(s, i){
     touchX = null;
   }, {passive:true});
 })();
+
+function fitTallSlides(){
+  const SAFE = 44;   // keep clear of the nav dots / buttons at the bottom
+  document.querySelectorAll('.slide').forEach(sl => {
+    if (!sl.clientHeight) return;
+    const over = () => {   // does the content end below the safe area?
+      const top = sl.getBoundingClientRect().top;
+      const bottom = Math.max(...[...sl.children].map(c => c.getBoundingClientRect().bottom));
+      return bottom - top > sl.clientHeight - SAFE;
+    };
+    const code = sl.querySelector('.codewrap'), out = sl.querySelector('.outwrap');
+    if (!over()) return;
+    if (!code) {           // text slides: zoom the content out a little
+      let z = 1;
+      while (over() && z > 0.8) { z -= 0.02; [...sl.children].forEach(c => c.style.zoom = z); }
+      return;
+    }
+    if (out) {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:grid;grid-template-columns:1.45fr 1fr;gap:16px;align-items:start;direction:ltr';
+      code.before(row); row.append(code, out); out.style.marginTop = '0';
+    }
+    const els = sl.querySelectorAll('pre.code, .obody');
+    let fs = 14.5;
+    while (over() && fs > 10.5) { fs -= 0.5; els.forEach(e => { e.style.fontSize = fs + 'px'; e.style.lineHeight = '1.55'; }); }
+  });
+}
+window.addEventListener('load', () => (document.fonts ? document.fonts.ready : Promise.resolve()).then(fitTallSlides));
 </script>
