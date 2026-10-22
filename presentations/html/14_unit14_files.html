@@ -1,0 +1,5486 @@
+<title>יחידה 14 · עיבוד קבצים</title>
+<style>
+/* ============================================================
+   DESIGN SYSTEM
+   Concept: the deck itself is staged as a code editor / terminal
+   window (title-bar dots, file tab) — grounded in the subject
+   (learning to code) rather than a generic slide template.
+   Committed single dark "editor" world by design (like a themed
+   terminal), the same way a themed arcade screen stays single-mode.
+   Font stack is an intentional native Hebrew system stack: the
+   Artifact sandbox blocks external font fetches, so rather than
+   link a webfont that silently falls back, we design directly
+   for the Hebrew system faces students' machines already have.
+   ============================================================ */
+:root{
+  --bg:            #0f1420;
+  --bg-panel:      #161c2c;
+  --bg-panel-2:    #1b2338;
+  --bg-titlebar:   #10151f;
+  --ink:           #e9edf6;
+  --ink-dim:       #939bb8;
+  --ink-faint:     #5c6485;
+  --line:          #2a3350;
+  --line-soft:     #212a44;
+
+  --blue:          #55c6f2;
+  --blue-dim:      #2d4a63;
+  --gold:          #ffd166;
+  --gold-dim:      #5a4a2c;
+  --coral:         #ff7a7a;
+  --coral-dim:     #5a2f34;
+  --green:         #6fe3b4;
+  --green-dim:     #204538;
+  --violet:        #bda2f2;
+  --violet-dim:    #3a2f57;
+
+  --font-display: "Rubik", "Segoe UI Variable Display", "Segoe UI", "Arial Hebrew", "Noto Sans Hebrew", "Heebo", "Arial", sans-serif;
+  --font-body:    "Assistant", "Segoe UI", "Arial Hebrew", "Noto Sans Hebrew", "Heebo", "Arial", sans-serif;
+  --font-mono:    "JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace, "SF Mono", Consolas, "Courier New", monospace;
+
+  --radius: 18px;
+  --shadow: 0 30px 80px -20px rgba(0,0,0,.65), 0 10px 30px -12px rgba(0,0,0,.5);
+}
+:root[data-theme="light"], :root[data-theme="dark"]{
+  /* Deliberately single-themed (see note above) — both branches keep the editor palette. */
+  --bg:#0f1420; --bg-panel:#161c2c; --bg-panel-2:#1b2338; --bg-titlebar:#10151f;
+  --ink:#e9edf6; --ink-dim:#939bb8; --ink-faint:#5c6485; --line:#2a3350; --line-soft:#212a44;
+}
+
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0;
+  background:
+    radial-gradient(1100px 620px at 12% -8%, #1a2440 0%, transparent 60%),
+    radial-gradient(900px 560px at 108% 8%, #1c1f3a 0%, transparent 55%),
+    var(--bg);
+  color:var(--ink);
+  font-family:var(--font-body);
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{ background:var(--blue); color:#0f1420; }
+
+/* ---------- stage & deck window ---------- */
+.stage{
+  position:fixed; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  padding:clamp(10px,3vh,34px) clamp(10px,3vw,34px);
+}
+.deck{
+  position:relative;
+  width:min(1180px, 96vw);
+  height:min(720px, 92vh);
+  background:linear-gradient(180deg, var(--bg-panel), var(--bg-panel-2));
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  display:flex; flex-direction:column;
+  overflow:hidden;
+}
+.titlebar{
+  display:flex; align-items:center; gap:14px;
+  padding:12px 18px;
+  background:var(--bg-titlebar);
+  border-bottom:1px solid var(--line);
+  direction:ltr; /* window chrome is a UI artifact, always LTR like a real editor */
+}
+.tb-dots{ display:flex; gap:7px; }
+.tb-dots span{ width:11px; height:11px; border-radius:50%; display:block; }
+.tb-dots span:nth-child(1){ background:#ff6159; }
+.tb-dots span:nth-child(2){ background:#ffbd2e; }
+.tb-dots span:nth-child(3){ background:#28c93f; }
+.tb-tab{
+  font-family:var(--font-mono);
+  font-size:12.5px;
+  color:var(--ink-dim);
+  background:var(--bg-panel);
+  border:1px solid var(--line);
+  border-bottom:none;
+  padding:5px 12px 6px;
+  border-radius:8px 8px 0 0;
+  margin-inline-start:6px;
+}
+.tb-tab b{ color:var(--gold); font-weight:600; }
+.tb-spacer{ flex:1; }
+.tb-progress-label{
+  font-family:var(--font-mono); font-size:12px; color:var(--ink-faint);
+  font-variant-numeric:tabular-nums;
+}
+
+.progress-track{ height:3px; background:var(--line-soft); position:relative; }
+.progress-fill{ position:absolute; inset-inline-start:0; top:0; bottom:0; width:0%;
+  background:linear-gradient(90deg, var(--blue), var(--green));
+  transition:width .35s ease; }
+
+/* ---------- slide viewport ---------- */
+.viewport{ position:relative; flex:1; overflow:hidden; }
+.slide{
+  position:absolute; inset:0;
+  display:flex; flex-direction:column;
+  padding:clamp(26px,4.4vh,52px) clamp(34px,6vw,76px);
+  opacity:0; transform:translateY(14px) scale(.99);
+  pointer-events:none;
+  transition:opacity .38s ease, transform .38s ease;
+  overflow-y:auto;
+  direction:rtl;
+}
+.slide.active{ opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
+@media (prefers-reduced-motion: reduce){
+  .slide{ transition:opacity .01s linear; transform:none; }
+}
+
+.eyebrow{
+  font-family:var(--font-mono); font-size:13px; letter-spacing:.02em;
+  color:var(--blue); display:flex; align-items:center; gap:8px; margin-bottom:14px;
+  direction:ltr; justify-content:flex-end;
+}
+.eyebrow .dot{ width:6px; height:6px; border-radius:50%; background:var(--blue); }
+
+h1.slide-title{
+  font-family:var(--font-display); font-weight:700;
+  font-size:clamp(28px,4.4vh,44px); line-height:1.15; margin:0 0 .4em;
+  text-wrap:balance; color:var(--ink);
+}
+h1.slide-title .accent{ color:var(--gold); }
+h2.slide-sub{
+  font-family:var(--font-body); font-weight:500; color:var(--ink-dim);
+  font-size:clamp(15px,2.2vh,19px); margin:0 0 1.1em; line-height:1.6; max-width:62ch;
+}
+
+.body-text{ font-size:clamp(15px,2.1vh,18px); line-height:1.75; color:var(--ink); max-width:70ch; }
+.body-text + .body-text{ margin-top:.8em; }
+
+/* ---------- title slide ---------- */
+.slide.title-slide{ align-items:center; justify-content:center; text-align:center; }
+.title-slide .kicker{
+  font-family:var(--font-mono); color:var(--green); font-size:14px;
+  border:1px solid var(--green-dim); background:rgba(111,227,180,.08);
+  padding:6px 16px; border-radius:999px; margin-bottom:26px; direction:ltr;
+}
+.title-slide h1{
+  font-family:var(--font-display); font-weight:800;
+  font-size:clamp(38px,7vh,68px); line-height:1.08; margin:0 0 .3em; text-wrap:balance;
+}
+.title-slide .py-mark{ color:var(--blue); }
+.title-slide .py-mark2{ color:var(--gold); }
+.title-slide p{ color:var(--ink-dim); font-size:clamp(16px,2.4vh,21px); max-width:56ch; margin:0 auto; line-height:1.6; }
+.prompt-line{
+  margin-top:36px; font-family:var(--font-mono); color:var(--ink-faint); font-size:15px; direction:ltr;
+}
+.prompt-line .caret{ display:inline-block; width:9px; height:1.1em; background:var(--green); margin-inline-start:4px; vertical-align:-2px;
+  animation:blink 1.1s steps(1) infinite; }
+@keyframes blink{ 50%{ opacity:0; } }
+@media (prefers-reduced-motion: reduce){ .prompt-line .caret{ animation:none; } }
+
+/* ---------- icon grid (industries etc.) ---------- */
+.grid{ display:grid; gap:16px; margin-top:8px; }
+.grid.cols-4{ grid-template-columns:repeat(4,1fr); }
+.grid.cols-3{ grid-template-columns:repeat(3,1fr); }
+.grid.cols-2{ grid-template-columns:repeat(2,1fr); }
+.card{
+  background:var(--bg-titlebar); border:1px solid var(--line); border-radius:14px;
+  padding:16px 16px 15px; display:flex; flex-direction:column; gap:8px;
+}
+.card .icon{ width:34px; height:34px; }
+.card h3{ margin:2px 0 0; font-family:var(--font-display); font-size:15.5px; font-weight:700; color:var(--ink); }
+.card p{ margin:0; font-size:13.5px; line-height:1.55; color:var(--ink-dim); }
+.card.blue .icon{ color:var(--blue); } .card.blue{ border-color:var(--blue-dim); }
+.card.gold .icon{ color:var(--gold); } .card.gold{ border-color:var(--gold-dim); }
+.card.coral .icon{ color:var(--coral); } .card.coral{ border-color:var(--coral-dim); }
+.card.green .icon{ color:var(--green); } .card.green{ border-color:var(--green-dim); }
+.card.violet .icon{ color:var(--violet); } .card.violet{ border-color:var(--violet-dim); }
+
+/* ---------- badge chips (companies, tags) ---------- */
+.chiprow{ display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; direction:rtl; }
+.chip{
+  font-family:var(--font-mono); font-size:13.5px; color:var(--ink);
+  background:var(--bg-titlebar); border:1px solid var(--line);
+  padding:7px 14px; border-radius:999px; direction:ltr;
+}
+
+/* ---------- two-col layout ---------- */
+.split{ display:grid; grid-template-columns:1.1fr .9fr; gap:34px; align-items:center; flex:1; }
+.split .art{ display:flex; align-items:center; justify-content:center; }
+
+/* ---------- code block ---------- */
+.codewrap{
+  background:#0c1019; border:1px solid var(--line); border-radius:12px; overflow:hidden;
+  direction:ltr; text-align:left;
+}
+.codewrap .chead{
+  display:flex; align-items:center; gap:8px; padding:8px 12px; background:var(--bg-titlebar);
+  border-bottom:1px solid var(--line); font-family:var(--font-mono); font-size:11.5px; color:var(--ink-faint);
+}
+.codewrap .chead b{ color:var(--green); font-weight:600; }
+pre.code{
+  margin:0; padding:16px 18px; font-family:var(--font-mono); font-size:14.5px; line-height:1.7;
+  overflow-x:auto; direction:ltr; text-align:left; white-space:pre;
+}
+.tok-kw{ color:var(--violet); font-weight:600; }
+.tok-str{ color:var(--gold); }
+.tok-num{ color:var(--coral); }
+.tok-com{ color:var(--ink-faint); font-style:italic; }
+.tok-fn{ color:var(--blue); }
+.tok-var{ color:#9fd3ff; }
+.tok-punc{ color:var(--ink-dim); }
+
+.outwrap{ background:#0a0d14; border:1px solid var(--line); border-radius:12px; overflow:hidden; direction:ltr; text-align:left; }
+.outwrap .ohead{ padding:8px 12px; background:var(--bg-titlebar); border-bottom:1px solid var(--line);
+  font-family:var(--font-mono); font-size:11.5px; color:var(--ink-faint); }
+.outwrap .obody{ padding:14px 18px; font-family:var(--font-mono); font-size:14.5px; color:var(--green); white-space:pre-wrap; line-height:1.7; }
+
+/* ---------- exercise list ---------- */
+.exlist{ list-style:none; margin:10px 0 0; padding:0; display:flex; flex-direction:column; gap:12px; }
+.exlist li{
+  display:flex; gap:14px; align-items:flex-start;
+  background:var(--bg-titlebar); border:1px solid var(--line); border-radius:12px; padding:13px 16px;
+}
+.exnum{
+  flex:none; width:26px; height:26px; border-radius:8px; background:var(--bg-panel-2);
+  border:1px solid var(--line); display:flex; align-items:center; justify-content:center;
+  font-family:var(--font-mono); font-size:13px; color:var(--ink-dim); font-variant-numeric:tabular-nums;
+}
+.exbody{ flex:1; font-size:15px; line-height:1.6; }
+.exbody code{ font-family:var(--font-mono); background:var(--bg-panel-2); padding:1px 6px; border-radius:5px; color:var(--gold); direction:ltr; unicode-bidi:isolate; display:inline-block; }
+.tag{
+  flex:none; font-family:var(--font-mono); font-size:11px; padding:3px 9px; border-radius:999px;
+  height:fit-content; direction:ltr;
+}
+.tag.easy{ background:var(--green-dim); color:var(--green); }
+.tag.med{ background:var(--gold-dim); color:var(--gold); }
+.tag.hard{ background:var(--coral-dim); color:var(--coral); }
+
+/* ---------- callouts ---------- */
+.callout{ display:flex; gap:12px; align-items:flex-start; padding:14px 16px; border-radius:12px; margin-top:14px; }
+.callout .icon{ width:22px; height:22px; flex:none; margin-top:2px; }
+.callout p{ margin:0; font-size:14.5px; line-height:1.6; }
+.callout.warn{ background:rgba(255,122,122,.08); border:1px solid var(--coral-dim); }
+.callout.warn .icon{ color:var(--coral); }
+.callout.tip{ background:rgba(111,227,180,.08); border:1px solid var(--green-dim); }
+.callout.tip .icon{ color:var(--green); }
+
+ul.plain, ol.plain{ margin:10px 0 0; padding-inline-start:1.3em; display:flex; flex-direction:column; gap:9px; }
+ul.plain li, ol.plain li{ font-size:15.5px; line-height:1.65; }
+ul.plain li::marker{ color:var(--blue); }
+strong.hl{ color:var(--gold); font-weight:700; }
+strong.hl2{ color:var(--blue); font-weight:700; }
+
+/* ---------- roadmap timeline ---------- */
+.roadmap{ display:flex; flex-direction:column; gap:10px; margin-top:10px; }
+.rgroup{ display:flex; gap:14px; align-items:stretch; }
+.rgroup .rlabel{
+  flex:none; width:118px; display:flex; align-items:center; justify-content:center; text-align:center;
+  font-family:var(--font-display); font-weight:700; font-size:13.5px; border-radius:10px; padding:10px 6px;
+}
+.rgroup .ritems{ flex:1; display:flex; flex-wrap:wrap; gap:8px; align-content:center; }
+.rchip{ background:var(--bg-titlebar); border:1px solid var(--line); border-radius:8px; padding:7px 12px; font-size:13px; color:var(--ink-dim); }
+.rgroup.p1 .rlabel{ background:var(--blue-dim); color:var(--blue); }
+.rgroup.p2 .rlabel{ background:var(--gold-dim); color:var(--gold); }
+.rgroup.p3 .rlabel{ background:var(--violet-dim); color:var(--violet); }
+.rgroup.p4 .rlabel{ background:var(--green-dim); color:var(--green); }
+
+/* ---------- controls ---------- */
+.controls{
+  position:absolute; bottom:16px; inset-inline-end:16px; display:flex; gap:8px; z-index:5;
+  direction:ltr;
+}
+.ctrl-btn{
+  width:40px; height:40px; border-radius:10px; border:1px solid var(--line);
+  background:var(--bg-titlebar); color:var(--ink-dim); display:flex; align-items:center; justify-content:center;
+  cursor:pointer; transition:background .15s, color .15s, border-color .15s;
+}
+.ctrl-btn:hover{ background:var(--bg-panel-2); color:var(--ink); border-color:var(--blue-dim); }
+.ctrl-btn:focus-visible{ outline:2px solid var(--blue); outline-offset:2px; }
+.ctrl-btn svg{ width:18px; height:18px; }
+
+.dots-nav{ position:absolute; bottom:20px; inset-inline-start:20px; display:flex; gap:6px; z-index:5; direction:ltr; }
+.dots-nav button{
+  width:7px; height:7px; border-radius:50%; border:none; background:var(--line); cursor:pointer; padding:0;
+}
+.dots-nav button.on{ background:var(--blue); width:20px; border-radius:4px; }
+
+.hint{ position:absolute; bottom:18px; left:50%; transform:translateX(-50%); font-family:var(--font-mono);
+  font-size:11.5px; color:var(--ink-faint); z-index:4; }
+
+@media (max-width:760px){
+  .split{ grid-template-columns:1fr; }
+  .grid.cols-4{ grid-template-columns:repeat(2,1fr); }
+  .grid.cols-3{ grid-template-columns:repeat(2,1fr); }
+}
+
+/* ---------- trace tables (unit 7+) ---------- */
+table.trace{ border-collapse:collapse; margin-top:12px; font-size:14px; direction:rtl; }
+table.trace th, table.trace td{ border:1px solid var(--line); padding:6px 12px; text-align:center; }
+table.trace th{ background:var(--bg-titlebar); color:var(--ink-dim); font-family:var(--font-display); font-weight:700; font-size:13px; }
+table.trace td{ font-family:var(--font-mono); color:var(--ink); direction:ltr; unicode-bidi:isolate; }
+table.trace td.t{ color:var(--green); } table.trace td.f{ color:var(--coral); }
+table.trace td.o{ color:var(--gold); }
+pre.file{ background:#0a0d14; border:1px solid var(--line); border-radius:10px; padding:10px 16px; margin:8px 0 0;
+  font-family:var(--font-mono); font-size:14px; color:var(--ink); direction:ltr; text-align:left; white-space:pre; }
+
+pre.code .tok-str, pre.code .tok-com{ unicode-bidi:isolate; }
+</style>
+
+<div class="stage">
+  <div class="deck" id="deck">
+    <div class="titlebar">
+      <div class="tb-dots"><span></span><span></span><span></span></div>
+      <div class="tb-tab"><b>py</b>_course — <span id="tb-name">00_intro.py</span></div>
+      <div class="tb-spacer"></div>
+      <div class="tb-progress-label"><span id="pg-cur">1</span> / <span id="pg-total">1</span></div>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="viewport" id="viewport"></div>
+    <div class="dots-nav" id="dotsNav"></div>
+    <div class="controls">
+      <button class="ctrl-btn" id="btnFs" title="מסך מלא" aria-label="מסך מלא">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4M20 15v4a1 1 0 0 1-1 1h-4"/></svg>
+      </button>
+      <button class="ctrl-btn" id="btnPrev" title="הקודם" aria-label="הקודם">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <button class="ctrl-btn" id="btnNext" title="הבא" aria-label="הבא">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<svg width="0" height="0" style="position:absolute">
+<defs>
+<symbol id="ic-brain" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M9 4a3 3 0 0 0-3 3v.3A3 3 0 0 0 4 10v1a3 3 0 0 0 1 2.2V15a3 3 0 0 0 3 3h1v2M9 4a3 3 0 0 1 3 3v13M9 4h1M4 10h2M4.2 13.5H7"/>
+  <path d="M15 4a3 3 0 0 1 3 3v.3a3 3 0 0 1 2 2.7v1a3 3 0 0 1-1 2.2V15a3 3 0 0 1-3 3h-1"/>
+  <path d="M15 4a3 3 0 0 0-3 3M18 10h2M19.8 13.5H17"/>
+</symbol>
+<symbol id="ic-terminal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/>
+</symbol>
+<symbol id="ic-cpu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9" y="9" width="6" height="6" rx="1"/>
+  <path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/>
+</symbol>
+<symbol id="ic-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.7 2.6 4 5.7 4 9s-1.3 6.4-4 9c-2.7-2.6-4-5.7-4-9s1.3-6.4 4-9Z"/>
+</symbol>
+<symbol id="ic-robot" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="5" y="9" width="14" height="10" rx="2"/><circle cx="9.5" cy="14" r="1.2" fill="currentColor" stroke="none"/><circle cx="14.5" cy="14" r="1.2" fill="currentColor" stroke="none"/>
+  <path d="M12 9V6M9 6h6M4 13H2M22 13h-2"/>
+</symbol>
+<symbol id="ic-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M4 20V10M10 20V4M16 20v-7M4 20h16"/>
+</symbol>
+<symbol id="ic-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12 3l7 3v6c0 4.5-3 7.7-7 9-4-1.3-7-4.5-7-9V6l7-3Z"/><path d="M9 12l2 2 4-4"/>
+</symbol>
+<symbol id="ic-network" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="4.5" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/>
+  <path d="M12 6.5v4M12 10.5 6 16M12 10.5l6 5.5"/>
+</symbol>
+<symbol id="ic-rocket" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12 2c3 1.5 5 5 5 9 0 2-1 4-2 5l-3 2-3-2c-1-1-2-3-2-5 0-4 2-7.5 5-9Z"/><circle cx="12" cy="9" r="1.6"/>
+  <path d="M9 16l-2 4M15 16l2 4M9 20h6"/>
+</symbol>
+<symbol id="ic-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="12" r="3.2"/><path d="M12 3v2.4M12 18.6V21M21 12h-2.4M5.4 12H3M18 6l-1.7 1.7M7.7 16.3 6 18M18 18l-1.7-1.7M7.7 7.7 6 6"/>
+</symbol>
+<symbol id="ic-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5v-15Z"/><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20"/>
+</symbol>
+<symbol id="ic-gamepad" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M6 9h12l2 7a2 2 0 0 1-3.5 1.8L15 16H9l-1.5 1.8A2 2 0 0 1 4 16l2-7Z"/><path d="M8 12h2M9 11v2M16 11.5h.01M18 13h.01"/>
+</symbol>
+<symbol id="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M20 6 9 17l-5-5"/>
+</symbol>
+<symbol id="ic-warn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12 3 2 20h20L12 3Z"/><path d="M12 9v5M12 17h.01"/>
+</symbol>
+<symbol id="ic-bulb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M9 18h6M10 21h4M7 9a5 5 0 1 1 8.7 3.4c-.8.9-1.7 1.7-1.7 3.1v.5H10v-.5c0-1.4-.9-2.2-1.7-3.1A5 5 0 0 1 7 9Z"/>
+</symbol>
+<symbol id="ic-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/>
+</symbol>
+</defs>
+</svg>
+
+<script>
+/* ============================================================
+   SLIDE DATA — deck 14: עיבוד קבצים – יצירה, כתיבה וקריאה
+   ============================================================ */
+const FILE_NAME = "14_files.py";
+const SLIDES = [
+  {
+    "type": "title",
+    "kicker": "תקשוב ומחשבים &middot; יחידה 14",
+    "title": "<span class=\"py-mark\">קבצים</span> — נתונים <span class=\"py-mark2\">שנשארים</span>",
+    "sub": "עד היום, כל מה שהתכנית ידעה נמחק ברגע שהיא נגמרה. היום נלמד לכתוב נתונים לקובץ ולקרוא אותם בהרצה הבאה.",
+    "prompt": ">>> with open(\"grades.txt\", \"w\") as f: <span class=\"caret\"></span>"
+  },
+  {
+    "type": "content",
+    "eyebrow": "תזכורת מהיחידה הקודמת",
+    "title": "מה <span class='accent'>למדנו</span> ביחידה 13?",
+    "body": "\n  <ul class=\"plain\">\n    <li>מילון — <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">{\"דנה\": 92}</code> — זוגות של מפתח וערך</li>\n    <li><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">d.get(k, 0)</code> — קריאה בטוחה; <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">k in d</code> — בדיקת מפתח</li>\n    <li><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">for k, v in d.items():</code> — מעבר על הזוגות</li>\n    <li>תבנית הספירה: <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">d[x] = d.get(x, 0) + 1</code></li>\n  </ul>"
+  },
+  {
+    "type": "content",
+    "eyebrow": "מטרות השיעור",
+    "title": "מה <span class='accent'>נלמד</span> היום?",
+    "body": "\n  <ul class=\"plain\">\n    <li>למה צריך קבצים: זיכרון זמני מול אחסון קבוע</li>\n    <li>פתיחת קובץ עם <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">open</code> — ושלושת המצבים <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">\"w\"</code>, <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">\"r\"</code>, <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">\"a\"</code></li>\n    <li>כתיבה לקובץ עם <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">write</code> — ולמה צריך <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">\\n</code></li>\n    <li>קריאה: <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">read</code>, <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">readline</code>, <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">readlines</code> ומעבר בלולאת <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">for</code></li>\n    <li><strong class=\"hl\">with</strong> — סגירה אוטומטית של הקובץ</li>\n    <li>ניקוי שורות עם <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">strip</code> והמרה למספרים</li>\n  </ul>"
+  },
+  {
+    "type": "content",
+    "eyebrow": "למה?",
+    "title": "<span class='accent'>זיכרון</span> מול קובץ",
+    "body": "\n  <div class=\"grid cols-2\">\n    <div class=\"card coral\"><h3>משתנים (RAM)</h3><p>מהירים מאוד — אבל <strong>נמחקים</strong> כשהתכנית נגמרת, או כשהמחשב נכבה.</p></div>\n    <div class=\"card green\"><h3>קבצים (דיסק)</h3><p>איטיים יותר — אבל <strong>נשמרים</strong>. אפשר לקרוא אותם מחר, להעביר למחשב אחר, לפתוח בעורך.</p></div>\n  </div>\n  <p class=\"body-text\" style=\"margin-top:16px\">כל אפליקציה שזוכרת משהו — רשימת שיאים במשחק, הגדרות, היסטוריית צ'אט — שומרת אותו בקובץ (או במסד נתונים, שהוא בסוף גם קבצים).</p>\n  <div class=\"callout tip\" style=\"margin-top:12px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>ביחידה הזו נעבוד עם <strong>קבצי טקסט</strong> (<code dir=\"ltr\" style=\"font-family:var(--font-mono)\">.txt</code>, <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">.csv</code>) — קבצים שאפשר לפתוח ב-Notepad ולקרוא.</p>\n  </div>"
+  },
+  {
+    "type": "content",
+    "eyebrow": "שלושה שלבים",
+    "title": "פותחים, <span class='accent'>עובדים</span>, סוגרים",
+    "body": "\n  <div class=\"grid cols-3\">\n    <div class=\"card blue\"><h3>1. open</h3><p><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">f = open(\"data.txt\", \"w\")</code> — מקבלים \"ידית\" (file object) לקובץ</p></div>\n    <div class=\"card gold\"><h3>2. read / write</h3><p><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">f.write(\"...\")</code> או <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">f.read()</code> — דרך הידית</p></div>\n    <div class=\"card green\"><h3>3. close</h3><p><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">f.close()</code> — שומרים הכול לדיסק ומשחררים את הקובץ</p></div>\n  </div>\n  <p class=\"body-text\" style=\"margin-top:16px\">הקובץ נוצר <strong class=\"hl2\">באותה תיקייה</strong> שממנה מריצים את התכנית (אלא אם נותנים נתיב מלא).</p>"
+  },
+  {
+    "type": "content",
+    "eyebrow": "מצבי פתיחה",
+    "title": "הפרמטר <span class='accent'>השני</span> של open",
+    "body": "\n  <div class=\"grid cols-3\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">\"r\"  read</span></h3><p>קריאה בלבד. ברירת המחדל. אם הקובץ לא קיים — <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">FileNotFoundError</code>.</p></div>\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">\"w\"  write</span></h3><p>כתיבה. יוצר קובץ חדש — ואם קיים, <strong>מוחק את כל התוכן שלו</strong>!</p></div>\n    <div class=\"card green\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">\"a\"  append</span></h3><p>הוספה לסוף. התוכן הקיים נשמר. אם הקובץ לא קיים — נוצר.</p></div>\n  </div>\n  <div class=\"callout warn\" style=\"margin-top:16px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-warn\"/></svg>\n    <p><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">\"w\"</code> על קובץ קיים <strong>מוחק אותו מיד</strong>, עוד לפני שכתבתם משהו. כשרוצים להוסיף — <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">\"a\"</code>.</p>\n  </div>"
+  },
+  {
+    "type": "code",
+    "eyebrow": "כתיבה",
+    "title": "כותבים <span class='accent'>קובץ ראשון</span>",
+    "desc": "פותחים ב-\"w\", כותבים, סוגרים — ואז פותחים ב-\"r\" כדי לבדוק מה נכתב:",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"hello.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"w\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "write"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"שלום קובץ\\n\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "write"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"שורה שנייה\\n\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "close"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"hello.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"r\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "read"
+      },
+      {
+        "t": "tok-punc",
+        "c": "())"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "close"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "שלום קובץ\nשורה שנייה\n"
+  },
+  {
+    "type": "content",
+    "eyebrow": "שימו לב",
+    "title": "write <span class='accent'>לא</span> מוסיפה שורה חדשה",
+    "body": "\n  <p class=\"body-text\">בניגוד ל-<code dir=\"ltr\" style=\"font-family:var(--font-mono)\">print</code>, הפונקציה <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">write</code> כותבת <strong class=\"hl2\">בדיוק</strong> מה שנתתם לה. בלי <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">\\n</code>, הכול נדבק לשורה אחת:</p>\n  <div class=\"grid cols-2\" style=\"margin-top:12px\">\n    <div class=\"card coral\"><h3>בלי \\n</h3><p><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">f.write(\"a\")</code><br><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">f.write(\"b\")</code></p><pre class=\"file\">ab</pre></div>\n    <div class=\"card green\"><h3>עם \\n</h3><p><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">f.write(\"a\\n\")</code><br><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">f.write(\"b\\n\")</code></p><pre class=\"file\">a\nb</pre></div>\n  </div>\n  <div class=\"callout warn\" style=\"margin-top:14px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-warn\"/></svg>\n    <p><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">write</code> מקבלת <strong>רק מחרוזת</strong>. <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">f.write(92)</code> → TypeError. כותבים <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">f.write(str(92) + \"\\n\")</code>.</p>\n  </div>"
+  },
+  {
+    "type": "content",
+    "eyebrow": "עברית בקבצים",
+    "title": "<span class='accent' dir='ltr'>encoding=&quot;utf-8&quot;</span>",
+    "body": "\n  <p class=\"body-text\">קובץ שומר <strong class=\"hl\">בייטים</strong>, לא אותיות. ה-encoding קובע איך כל אות הופכת לבייטים. UTF-8 הוא התקן העולמי — הוא יודע עברית, ערבית, אנגלית ואימוג'י.</p>\n  <div class=\"callout tip\" style=\"margin-top:14px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>תמיד מוסיפים <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">encoding=\"utf-8\"</code> ל-<code dir=\"ltr\" style=\"font-family:var(--font-mono)\">open</code> כשיש טקסט שאינו אנגלית. בלי זה, ב-Windows תקבלו לפעמים ג'יבריש או <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">UnicodeDecodeError</code>.</p>\n  </div>"
+  },
+  {
+    "type": "code",
+    "eyebrow": "with",
+    "title": "הדרך <span class='accent'>הנכונה</span>: with",
+    "desc": "with סוגר את הקובץ אוטומטית בסוף הבלוק המוזח — גם אם קרתה שגיאה באמצע:",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"hello.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"w\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "write"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"כתוב עם with\\n\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"hello.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "text"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "read"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "text"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-var",
+        "c": "closed"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "כתוב עם with\n\nTrue"
+  },
+  {
+    "type": "content",
+    "eyebrow": "למה with?",
+    "title": "מה קורה אם <span class='accent'>שוכחים close?</span>",
+    "body": "\n  <ul class=\"plain\">\n    <li>פייתון כותבת לדיסק <strong class=\"hl\">באצוות</strong>. בלי close, ייתכן שחלק מהנתונים עוד לא נשמר</li>\n    <li>הקובץ נשאר \"תפוס\" — ב-Windows אי אפשר למחוק או לשנות אותו מתכנית אחרת</li>\n    <li>אם שגיאה קורית לפני השורה של close — היא פשוט לא תתבצע</li>\n  </ul>\n  <div class=\"callout tip\" style=\"margin-top:14px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>מכאן והלאה — <strong>תמיד with</strong>. זה מה שכותבים בקוד מקצועי, וזה מה שנכתוב בשאר הקורס.</p>\n  </div>"
+  },
+  {
+    "type": "code",
+    "eyebrow": "כתיבת רשימה",
+    "title": "רשימה <span class='accent'>לקובץ</span>",
+    "desc": "עוברים על הרשימה בלולאה, וכותבים כל איבר בשורה משלו:",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "grades"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "["
+      },
+      {
+        "t": "tok-num",
+        "c": "85"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "92"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "78"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "64"
+      },
+      {
+        "t": "tok-punc",
+        "c": "]"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"grades.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"w\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "g"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "grades"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "write"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-fn",
+        "c": "str"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "g"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "+"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"\\n\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"grades.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "read"
+      },
+      {
+        "t": "tok-punc",
+        "c": "())"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "85\n92\n78\n64\n"
+  },
+  {
+    "type": "code",
+    "eyebrow": "הוספה",
+    "title": "<span class='accent'>\"a\"</span> — מוסיפים לסוף",
+    "desc": "הקובץ grades.txt מהשקף הקודם. פותחים ב-\"a\" ומוסיפים ציון — הקיימים נשארים:",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"grades.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"a\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "write"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"99\\n\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"grades.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "read"
+      },
+      {
+        "t": "tok-punc",
+        "c": "())"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "85\n92\n78\n64\n99\n"
+  },
+  {
+    "type": "exercises",
+    "eyebrow": "תרגול מיידי",
+    "title": "נסו <span class='accent'>עכשיו</span>",
+    "desc": "",
+    "items": [
+      {
+        "tag": "easy",
+        "text": "כתבו לקובץ <code>me.txt</code> את שמכם, גילכם והעיר שלכם — כל אחד בשורה. פתחו את הקובץ בעורך ובדקו."
+      },
+      {
+        "tag": "easy",
+        "text": "הריצו פעמיים תכנית שכותבת ב-\"w\", ופעמיים תכנית שכותבת ב-\"a\". מה ההבדל בתוכן הקובץ?"
+      },
+      {
+        "tag": "med",
+        "text": "קלטו 5 שמות מהמשתמש וכתבו אותם לקובץ <code>names.txt</code>, שם בכל שורה."
+      },
+      {
+        "tag": "med",
+        "text": "כתבו לקובץ את לוח הכפל של 7 (\"7 x 1 = 7\" וכן הלאה) — 10 שורות."
+      }
+    ]
+  },
+  {
+    "type": "content",
+    "eyebrow": "קריאה",
+    "title": "ארבע דרכים <span class='accent'>לקרוא</span>",
+    "body": "\n  <div class=\"grid cols-2\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">f.read()</span></h3><p>כל הקובץ כ<strong>מחרוזת אחת</strong> ארוכה.</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">f.readline()</span></h3><p><strong>שורה אחת</strong> בכל קריאה. בסוף הקובץ מחזירה <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">\"\"</code>.</p></div>\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">f.readlines()</span></h3><p><strong>רשימה</strong> של כל השורות (כל אחת עם \\n בסוף).</p></div>\n    <div class=\"card green\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">for line in f:</span></h3><p>שורה אחרי שורה בלולאה — <strong>הדרך המומלצת</strong>. עובדת גם על קבצים ענקיים.</p></div>\n  </div>"
+  },
+  {
+    "type": "code",
+    "eyebrow": "readlines",
+    "title": "השורות <span class='accent'>כרשימה</span>",
+    "desc": "שימו לב ל-\\n שבסוף כל שורה — הוא חלק מהטקסט:",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"grades.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"w\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "write"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"85\\n92\\n78\\n\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"grades.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "lines"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "readlines"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "lines"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-fn",
+        "c": "len"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "lines"
+      },
+      {
+        "t": "tok-punc",
+        "c": "))"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "['85\\n', '92\\n', '78\\n']\n3"
+  },
+  {
+    "type": "code",
+    "eyebrow": "for על קובץ",
+    "title": "שורה <span class='accent'>אחרי שורה</span>",
+    "desc": "print מוסיף \\n משלו — ולכן מופיעות שורות ריקות. strip מנקה:",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"grades.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"---\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"grades.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "strip"
+      },
+      {
+        "t": "tok-punc",
+        "c": "())"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "85\n\n92\n\n78\n\n---\n85\n92\n78"
+  },
+  {
+    "type": "content",
+    "eyebrow": "strip",
+    "title": "<span class='accent'>strip</span> — מנקים את הקצוות",
+    "body": "\n  <p class=\"body-text\"><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">line.strip()</code> מוחקת רווחים ותווי שורה חדשה (<strong class=\"hl\">\\n</strong>) מתחילת המחרוזת ומסופה. כמעט כל קריאת שורה מקובץ מתחילה בה.</p>\n  <table class=\"trace\" style=\"margin-top:12px\">\n    <tr><th>line</th><th>line.strip()</th></tr>\n    <tr><td>'85\\n'</td><td class=\"o\">'85'</td></tr>\n    <tr><td>'  דנה  \\n'</td><td class=\"o\">'דנה'</td></tr>\n    <tr><td>'\\n'</td><td class=\"o\">''</td></tr>\n  </table>\n  <div class=\"callout warn\" style=\"margin-top:14px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-warn\"/></svg>\n    <p>מה שנקרא מקובץ הוא תמיד <strong>מחרוזת</strong> — גם אם כתוב שם מספר. כדי לחשב: <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">int(line.strip())</code> או <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">float(...)</code>.</p>\n  </div>"
+  },
+  {
+    "type": "code",
+    "eyebrow": "קריאה + חישוב",
+    "title": "ממוצע <span class='accent'>מקובץ</span>",
+    "desc": "הקובץ grades.txt: 85, 92, 78. קוראים, ממירים למספר, ומחשבים:",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "grades"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "[]"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"grades.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-var",
+        "c": "grades"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "append"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-fn",
+        "c": "int"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "strip"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()))"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "grades"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"ממוצע:\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "sum"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "grades"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "/"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "len"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "grades"
+      },
+      {
+        "t": "tok-punc",
+        "c": "))"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "[85, 92, 78]\nממוצע: 85.0"
+  },
+  {
+    "type": "code",
+    "eyebrow": "שורות ריקות",
+    "title": "מדלגים על <span class='accent'>שורה ריקה</span>",
+    "desc": "שורה ריקה בסוף קובץ גורמת ל-<bdi dir=\"ltr\">int(\"\")</bdi> → ValueError. בודקים לפני ההמרה:",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"nums.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"w\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "write"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"10\\n\\n20\\n30\\n\\n\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "total"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "0"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"nums.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "strip"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-kw",
+        "c": "if"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "=="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "            "
+      },
+      {
+        "t": "tok-kw",
+        "c": "continue"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-var",
+        "c": "total"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "+="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "int"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "total"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "60"
+  },
+  {
+    "type": "code",
+    "eyebrow": "קובץ שלא קיים",
+    "title": "<span class='accent'>FileNotFoundError</span>",
+    "desc": "קריאה של קובץ שלא קיים עוצרת את התכנית:",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"missing.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "read"
+      },
+      {
+        "t": "tok-punc",
+        "c": "())"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "Traceback (most recent call last):\n  ...\nFileNotFoundError: [Errno 2] No such file or directory: 'missing.txt'"
+  },
+  {
+    "type": "code",
+    "eyebrow": "טיפול בשגיאה",
+    "title": "<span class='accent'>try / except</span> — הצצה",
+    "desc": "אפשר \"לתפוס\" שגיאה ולהגיב אליה במקום שהתכנית תקרוס:",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "try"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"missing.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-var",
+        "c": "data"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "read"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "except"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "FileNotFoundError"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "data"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"\""
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"הקובץ לא נמצא — מתחילים מאפס\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-fn",
+        "c": "len"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "data"
+      },
+      {
+        "t": "tok-punc",
+        "c": "))"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "הקובץ לא נמצא — מתחילים מאפס\n0"
+  },
+  {
+    "type": "code",
+    "eyebrow": "שמירה וטעינה",
+    "title": "תכנית <span class='accent'>שזוכרת</span>",
+    "desc": "מונה ביקורים: בכל הרצה קוראים את המספר מהקובץ, מוסיפים 1 וכותבים בחזרה:",
+    "code": [
+      {
+        "t": "tok-kw",
+        "c": "def"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "load_count"
+      },
+      {
+        "t": "tok-punc",
+        "c": "():"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "try"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"visits.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "            "
+      },
+      {
+        "t": "tok-kw",
+        "c": "return"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "int"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "read"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()."
+      },
+      {
+        "t": "tok-fn",
+        "c": "strip"
+      },
+      {
+        "t": "tok-punc",
+        "c": "())"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "except"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "FileNotFoundError"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-kw",
+        "c": "return"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "0"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-kw",
+        "c": "def"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "save_count"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "n"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"visits.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"w\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "write"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-fn",
+        "c": "str"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "n"
+      },
+      {
+        "t": "tok-punc",
+        "c": "))"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "run"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "range"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-num",
+        "c": "3"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "          "
+      },
+      {
+        "t": "tok-com",
+        "c": "# מדמים 3 הרצות של התכנית"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "count"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "load_count"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "+"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "1"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-fn",
+        "c": "save_count"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "count"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"ביקור מספר\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "count"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "ביקור מספר 1\nביקור מספר 2\nביקור מספר 3"
+  },
+  {
+    "type": "code",
+    "eyebrow": "שורה עם כמה שדות",
+    "title": "<span class='accent'>split</span> על כל שורה",
+    "desc": "קובץ שבו כל שורה היא \"שם ציון\" — מפרקים כל שורה לשני חלקים:",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"class.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"w\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "write"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"דנה 92\\nעומר 78\\nלין 85\\n\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "grades"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "{}"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"class.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-var",
+        "c": "name"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "grade"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "split"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-var",
+        "c": "grades"
+      },
+      {
+        "t": "tok-punc",
+        "c": "["
+      },
+      {
+        "t": "tok-var",
+        "c": "name"
+      },
+      {
+        "t": "tok-punc",
+        "c": "]"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "int"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "grade"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "grades"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "{'דנה': 92, 'עומר': 78, 'לין': 85}"
+  },
+  {
+    "type": "content",
+    "eyebrow": "כך זה נכתב בבחינה",
+    "title": "open, <span class='accent'>list(file)</span>, close",
+    "body": "\n  <p class=\"body-text\">בהנחיות של משרד החינוך לבחינה (שאלון 735911) הקבצים הם <strong class=\"hl2\">קובצי txt בלבד</strong>, והקוד נכתב בשלושה שלבים קבועים, <strong>בלי</strong> <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">with</code>:</p>\n  <div class=\"grid cols-3\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">file = open(\"grades.txt\", \"r\")</span></h3><p>פתיחה. <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">\"r\"</code> קריאה, <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">\"w\"</code> כתיבה (מוחק את הישן), <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">\"a\"</code> הוספה לסוף</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">lines = list(file)</span></h3><p>כל השורות כ<strong>רשימה</strong>, בדיוק כמו <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">file.readlines()</code>. כל שורה עם <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">\\n</code> בסוף</p></div>\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">file.close()</span></h3><p><strong>חובה</strong> בסוף. בלי close הכתיבה אולי לא נשמרה</p></div>\n  </div>\n  <div class=\"callout tip\" style=\"margin-top:16px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">with</code> סוגר את הקובץ לבד, ולכן הוא נוח בתכניות אמיתיות. בבחינה כתבו כמו בהנחיות: <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">open</code> בהתחלה ו-<code dir=\"ltr\" style=\"font-family:var(--font-mono)\">close()</code> בסוף.</p>\n  </div>"
+  },
+  {
+    "type": "code",
+    "eyebrow": "הדוגמה מההנחיות של משרד החינוך",
+    "title": "מי <span class='accent'>נכשל</span> במתמטיקה?",
+    "desc": "בקובץ grades.txt כל שורה היא <code>שם#מקצוע#ציון</code>. מדפיסים את מי שנכשל במתמטיקה (ציון נמוך מ-55):",
+    "setup": "f = open(\"grades.txt\", \"w\", encoding=\"utf-8\")\nf.write(\"דני#מתמטיקה#95\\nדנה#אנגלית#82\\nרון#מתמטיקה#45\\nשירה#היסטוריה#88\\n\")\nf.close()\n",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "file"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"grades.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"r\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "lines"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "list"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "file"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "lines"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "data"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "split"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"#\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "name"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "data"
+      },
+      {
+        "t": "tok-punc",
+        "c": "["
+      },
+      {
+        "t": "tok-num",
+        "c": "0"
+      },
+      {
+        "t": "tok-punc",
+        "c": "]"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "subject"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "data"
+      },
+      {
+        "t": "tok-punc",
+        "c": "["
+      },
+      {
+        "t": "tok-num",
+        "c": "1"
+      },
+      {
+        "t": "tok-punc",
+        "c": "]"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "grade"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "int"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "data"
+      },
+      {
+        "t": "tok-punc",
+        "c": "["
+      },
+      {
+        "t": "tok-num",
+        "c": "2"
+      },
+      {
+        "t": "tok-punc",
+        "c": "])"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "if"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "subject"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "=="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"מתמטיקה\""
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "and"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "grade"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "&lt;"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "55"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "name"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "file"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "close"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "רון"
+  },
+  {
+    "type": "content",
+    "eyebrow": "מה קרה בכל שורה?",
+    "title": "<span class='accent'>split</span> ואינדקסים",
+    "body": "\n  <table class=\"trace\">\n    <tr><th>line</th><th>data[0]</th><th>data[1]</th><th>data[2]</th><th>int(data[2])</th></tr>\n    <tr><td>\"<bdi>דני</bdi>#<bdi>מתמטיקה</bdi>#95\\n\"</td><td>\"<bdi>דני</bdi>\"</td><td>\"<bdi>מתמטיקה</bdi>\"</td><td>\"95\\n\"</td><td>95</td></tr>\n    <tr><td>\"<bdi>רון</bdi>#<bdi>מתמטיקה</bdi>#45\\n\"</td><td>\"<bdi>רון</bdi>\"</td><td>\"<bdi>מתמטיקה</bdi>\"</td><td>\"45\\n\"</td><td class=\"o\">45</td></tr>\n  </table>\n  <ul class=\"plain\" style=\"margin-top:14px\">\n    <li>מקובץ טקסט הכול מגיע <strong class=\"hl2\">כמחרוזת</strong>. בלי <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">int()</code> ההשוואה <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">data[2] &lt; 55</code> נכשלת בשגיאה</li>\n    <li><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">int()</code> מתעלם מה-<code dir=\"ltr\" style=\"font-family:var(--font-mono)\">\\n</code> שבסוף. אבל אם השדה <strong>האחרון</strong> בשורה הוא טקסט, צריך <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">strip()</code>: <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">\"<bdi>מתמטיקה</bdi>\\n\" == \"<bdi>מתמטיקה</bdi>\"</code> הוא <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">False</code></li>\n  </ul>"
+  },
+  {
+    "type": "code",
+    "eyebrow": "קריאה וכתיבה יחד",
+    "title": "שומרים את התוצאה <span class='accent'>בקובץ חדש</span>",
+    "desc": "כותבים לקובץ fail.txt את שמות כל מי שנכשל (בכל מקצוע), ואז קוראים אותו:",
+    "setup": "f = open(\"grades.txt\", \"w\", encoding=\"utf-8\")\nf.write(\"דני#מתמטיקה#95\\nדנה#אנגלית#82\\nרון#מתמטיקה#45\\nשירה#היסטוריה#50\\n\")\nf.close()\n",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "src"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"grades.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"r\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "out"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"fail.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"w\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "src"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "data"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "strip"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()."
+      },
+      {
+        "t": "tok-fn",
+        "c": "split"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"#\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "if"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "int"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "data"
+      },
+      {
+        "t": "tok-punc",
+        "c": "["
+      },
+      {
+        "t": "tok-num",
+        "c": "2"
+      },
+      {
+        "t": "tok-punc",
+        "c": "])"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "&lt;"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "55"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-var",
+        "c": "out"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "write"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "data"
+      },
+      {
+        "t": "tok-punc",
+        "c": "["
+      },
+      {
+        "t": "tok-num",
+        "c": "0"
+      },
+      {
+        "t": "tok-punc",
+        "c": "]"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "+"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\" \""
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "+"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "data"
+      },
+      {
+        "t": "tok-punc",
+        "c": "["
+      },
+      {
+        "t": "tok-num",
+        "c": "1"
+      },
+      {
+        "t": "tok-punc",
+        "c": "]"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "+"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"\\n\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "src"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "close"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "out"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "close"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "check"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"fail.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"r\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "check"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "read"
+      },
+      {
+        "t": "tok-punc",
+        "c": "())"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "check"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "close"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "רון מתמטיקה\nשירה היסטוריה\n"
+  },
+  {
+    "type": "exercises",
+    "eyebrow": "תרגול · קריאה",
+    "title": "קוראים <span class='accent'>ומעבדים</span>",
+    "desc": "צרו קודם (ביד או בקוד) קובץ <code>scores.txt</code> עם ציון בכל שורה:",
+    "items": [
+      {
+        "tag": "easy",
+        "text": "הדפיסו את כל השורות בקובץ, עם מספר שורה לפני כל אחת."
+      },
+      {
+        "tag": "easy",
+        "text": "הדפיסו כמה שורות יש בקובץ."
+      },
+      {
+        "tag": "med",
+        "text": "הדפיסו את הממוצע, הגבוה והנמוך. דלגו על שורות ריקות."
+      },
+      {
+        "tag": "med",
+        "text": "כתבו לקובץ חדש <code>passed.txt</code> רק את הציונים מ-56 ומעלה."
+      }
+    ]
+  },
+  {
+    "type": "content",
+    "eyebrow": "טעויות נפוצות",
+    "title": "ארבע מלכודות <span class='accent'>של קבצים</span>",
+    "body": "\n  <div class=\"grid cols-2\">\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">open(f, \"w\")</span></h3><p>מוחק את התוכן הקיים מיד. להוספה — <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">\"a\"</code>.</p></div>\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">f.write(92)</span></h3><p>TypeError. write מקבלת רק מחרוזת: <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">str(92)</code>.</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">int(line)</span></h3><p>עובד גם עם \\n, אבל נכשל על שורה ריקה. <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">strip</code> ובדיקה לפני.</p></div>\n    <div class=\"card gold\"><h3>שוכחים \\n</h3><p>כל הנתונים נדבקים לשורה אחת ארוכה.</p></div>\n  </div>"
+  },
+  {
+    "type": "exercises",
+    "eyebrow": "תרגול · חלק א׳",
+    "title": "משימות — <span class='accent'>רמה קלה</span>",
+    "desc": "",
+    "items": [
+      {
+        "tag": "easy",
+        "text": "כתבו לקובץ את המספרים 1 עד 100, מספר בכל שורה. ודאו בעורך שיש 100 שורות."
+      },
+      {
+        "tag": "easy",
+        "text": "קראו את הקובץ מהסעיף הקודם והדפיסו את סכום המספרים (צריך לצאת 5050)."
+      },
+      {
+        "tag": "easy",
+        "text": "יומן: בכל הרצה, בקשו מהמשתמש משפט והוסיפו אותו לסוף <code>diary.txt</code>."
+      },
+      {
+        "tag": "easy",
+        "text": "קראו קובץ טקסט והדפיסו אותו כולו באותיות גדולות (<code>upper</code>)."
+      }
+    ]
+  },
+  {
+    "type": "exercises",
+    "eyebrow": "תרגול · חלק ב׳",
+    "title": "משימות — <span class='accent'>רמה בינונית</span>",
+    "desc": "",
+    "items": [
+      {
+        "tag": "med",
+        "text": "קובץ <code>class.txt</code> בפורמט \"שם ציון\". הדפיסו את שם בעל הציון הגבוה ואת ממוצע הכיתה."
+      },
+      {
+        "tag": "med",
+        "text": "ספר טלפונים קבוע: טענו מילון מקובץ בתחילת התכנית, אפשרו להוסיף אנשי קשר, ושמרו חזרה לקובץ ביציאה."
+      },
+      {
+        "tag": "med",
+        "text": "קראו קובץ וכתבו לקובץ חדש את אותן שורות בסדר הפוך (השורה האחרונה ראשונה)."
+      },
+      {
+        "tag": "med",
+        "text": "טבלת שיאים: שמרו 5 תוצאות הגבוהות בקובץ. בכל הרצה קלטו תוצאה חדשה, ועדכנו את הקובץ אם היא נכנסת ל-5 הגבוהות."
+      }
+    ]
+  },
+  {
+    "type": "exercises",
+    "eyebrow": "תרגול · חלק ג׳",
+    "title": "משימות — <span class='accent'>רמה מאתגרת</span>",
+    "desc": "",
+    "items": [
+      {
+        "tag": "hard",
+        "text": "מספר בדיקות: קובץ שבו כל שורה \"שם ציון1 ציון2 ציון3\" (מספר ציונים משתנה). כתבו לקובץ <code>report.txt</code> לכל תלמיד את שמו וממוצעו, ממוינים מהגבוה."
+      },
+      {
+        "tag": "hard",
+        "text": "רשימת משימות (To-Do): פקודות add / done מספר / list / quit. הרשימה נשמרת בקובץ בין הרצות."
+      },
+      {
+        "tag": "hard",
+        "text": "בדיקת תקינות: קראו קובץ ציונים והדפיסו לכל שורה בעייתית (ריקה, לא מספר, מחוץ לטווח 0–100) את מספר השורה ואת הבעיה."
+      },
+      {
+        "tag": "hard",
+        "text": "מיזוג: שני קבצים ממוינים של מספרים. כתבו קובץ שלישי ממוין שמכיל את כולם — בלי לטעון את שניהם לזיכרון בבת אחת (readline)."
+      }
+    ]
+  },
+  {
+    "type": "exercises",
+    "eyebrow": "בדיקה עצמית",
+    "title": "שאלות <span class='accent'>חזרה</span> מהירות",
+    "desc": "בלי לגלול אחורה — כמה מהן אתם זוכרים?",
+    "items": [
+      {
+        "tag": "easy",
+        "text": "מה ההבדל בין המצבים \"w\" ו-\"a\"?"
+      },
+      {
+        "tag": "easy",
+        "text": "למה כדאי להשתמש ב-<code>with</code>?"
+      },
+      {
+        "tag": "med",
+        "text": "מה ההבדל בין <code>read()</code>, <code>readline()</code> ו-<code>readlines()</code>?"
+      },
+      {
+        "tag": "med",
+        "text": "למה <code>print(line)</code> בלולאה על קובץ מדפיס שורות ריקות ביניהן?"
+      },
+      {
+        "tag": "med",
+        "text": "קראתם מהקובץ \"85\". מה הטיפוס שלו, ואיך מחשבים איתו?"
+      },
+      {
+        "tag": "hard",
+        "text": "מה יקרה אם נפתח ב-\"r\" קובץ שלא קיים? ואיך מונעים קריסה?"
+      }
+    ]
+  },
+  {
+    "type": "content",
+    "eyebrow": "לפני שסוגרים",
+    "title": "שישה דברים <span class='accent'>לזכור</span> מהיום",
+    "body": "\n  <div class=\"grid cols-3\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">with open(...) as f:</span></h3><p>פותח, ובסוף הבלוק סוגר לבד</p></div>\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">\"w\" / \"a\" / \"r\"</span></h3><p>דורס / מוסיף לסוף / קורא</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">f.write(s + \"\\n\")</span></h3><p>רק מחרוזות, ו-\\n לשורה חדשה</p></div>\n    <div class=\"card green\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">for line in f:</span></h3><p>קריאה שורה אחרי שורה</p></div>\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">line.strip()</span></h3><p>מנקה \\n ורווחים מהקצוות</p></div>\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">encoding=\"utf-8\"</span></h3><p>תמיד, כשיש עברית או ערבית</p></div>\n  </div>"
+  },
+  {
+    "type": "title",
+    "kicker": "סיכום יחידה 14",
+    "title": "נתונים ש<span class=\"py-mark\">שורדים</span> את <span class=\"py-mark2\">סוף התכנית</span>",
+    "sub": "בשיעור הבא: עבודה מתקדמת עם קבצים — חיפוש בקובץ, ניתוח טקסט, קובצי CSV והעתקת קבצים.",
+    "prompt": ">>> line.split(\",\") <span class=\"caret\"></span>"
+  }
+];
+
+
+/* ============================================================
+   RENDER ENGINE — shared across all decks in this course.
+   Reads the SLIDES data array above and builds the DOM.
+   ============================================================ */
+function esc(s){ return String(s); } // content is authored HTML on purpose (icons, spans)
+
+function renderCode(tokens){
+  return tokens.map(tk => tk.t ? `<span class="${tk.t}">${tk.c}</span>` : tk.c).join("");
+}
+
+function buildSlide(s, i){
+  const el = document.createElement("section");
+  el.className = "slide";
+  el.dataset.index = i;
+
+  if(s.type === "title"){
+    el.classList.add("title-slide");
+    el.innerHTML = `
+      <div class="kicker">${s.kicker}</div>
+      <h1>${s.title}</h1>
+      <p>${s.sub}</p>
+      <div class="prompt-line">${s.prompt}</div>
+    `;
+  } else if(s.type === "content"){
+    el.innerHTML = `
+      <div class="eyebrow"><span class="dot"></span>${s.eyebrow}</div>
+      <h1 class="slide-title">${s.title}</h1>
+      ${s.body}
+    `;
+  } else if(s.type === "code"){
+    el.innerHTML = `
+      <div class="eyebrow"><span class="dot"></span>${s.eyebrow}</div>
+      <h1 class="slide-title">${s.title}</h1>
+      ${s.desc ? `<p class="body-text" style="margin-bottom:16px">${s.desc}</p>` : ""}
+      <div class="codewrap">
+        <div class="chead"><b>&gt;_</b> example.py</div>
+        <pre class="code">${renderCode(s.code)}</pre>
+      </div>
+      ${s.outText ? `
+      <div class="outwrap" style="margin-top:14px">
+        <div class="ohead">${s.outLabel || "פלט:"}</div>
+        <div class="obody">${s.outText}</div>
+      </div>` : ""}
+    `;
+  } else if(s.type === "exercises"){
+    el.innerHTML = `
+      <div class="eyebrow"><span class="dot"></span>${s.eyebrow}</div>
+      <h1 class="slide-title">${s.title}</h1>
+      ${s.desc ? `<p class="body-text" style="margin-bottom:6px">${s.desc}</p>` : ""}
+      <ul class="exlist">
+        ${s.items.map((it, idx) => `
+          <li>
+            <span class="tag ${it.tag}">${it.tag === "easy" ? "קל" : it.tag === "med" ? "בינוני" : "מאתגר"}</span>
+            <span class="exbody">${it.text}</span>
+            <span class="exnum">${idx+1}</span>
+          </li>
+        `).join("")}
+      </ul>
+    `;
+  }
+  return el;
+}
+
+(function initDeck(){
+  const viewport = document.getElementById("viewport");
+  const dotsNav = document.getElementById("dotsNav");
+  const fill = document.getElementById("progressFill");
+  const pgCur = document.getElementById("pg-cur");
+  const pgTotal = document.getElementById("pg-total");
+  const tbName = document.getElementById("tb-name");
+  if(tbName) tbName.textContent = (typeof FILE_NAME !== "undefined" ? FILE_NAME : "deck.py");
+
+  let cur = 0;
+  const n = SLIDES.length;
+  pgTotal.textContent = n;
+
+  SLIDES.forEach((s, i) => {
+    viewport.appendChild(buildSlide(s, i));
+    const dot = document.createElement("button");
+    dot.setAttribute("aria-label", "שקופית " + (i+1));
+    dot.addEventListener("click", () => go(i));
+    dotsNav.appendChild(dot);
+  });
+  const slideEls = Array.from(viewport.children);
+  const dotEls = Array.from(dotsNav.children);
+
+  function go(i){
+    cur = Math.max(0, Math.min(n-1, i));
+    slideEls.forEach((el, idx) => el.classList.toggle("active", idx === cur));
+    dotEls.forEach((el, idx) => el.classList.toggle("on", idx === cur));
+    fill.style.width = (n <= 1 ? 100 : (cur/(n-1))*100) + "%";
+    pgCur.textContent = cur + 1;
+  }
+  go(0);
+
+  document.getElementById("btnNext").addEventListener("click", () => go(cur+1));
+  document.getElementById("btnPrev").addEventListener("click", () => go(cur-1));
+  document.getElementById("btnFs").addEventListener("click", () => {
+    if(!document.fullscreenElement){ document.documentElement.requestFullscreen().catch(()=>{}); }
+    else { document.exitFullscreen().catch(()=>{}); }
+  });
+
+  window.addEventListener("keydown", (e) => {
+    if(["ArrowRight","PageDown"," ","Spacebar"].includes(e.key)){ go(cur+1); e.preventDefault(); }
+    else if(["ArrowLeft","PageUp"].includes(e.key)){ go(cur-1); e.preventDefault(); }
+    else if(e.key === "Home"){ go(0); e.preventDefault(); }
+    else if(e.key === "End"){ go(n-1); e.preventDefault(); }
+    else if(e.key === "f" || e.key === "F"){ document.getElementById("btnFs").click(); }
+  });
+
+  let touchX = null;
+  viewport.addEventListener("touchstart", (e) => { touchX = e.touches[0].clientX; }, {passive:true});
+  viewport.addEventListener("touchend", (e) => {
+    if(touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if(Math.abs(dx) > 50){ go(dx < 0 ? cur+1 : cur-1); }
+    touchX = null;
+  }, {passive:true});
+})();
+
+function fitTallSlides(){
+  const SAFE = 44;   // keep clear of the nav dots / buttons at the bottom
+  document.querySelectorAll('.slide').forEach(sl => {
+    if (!sl.clientHeight) return;
+    const over = () => {   // does the content end below the safe area?
+      const top = sl.getBoundingClientRect().top;
+      const bottom = Math.max(...[...sl.children].map(c => c.getBoundingClientRect().bottom));
+      return bottom - top > sl.clientHeight - SAFE;
+    };
+    const code = sl.querySelector('.codewrap'), out = sl.querySelector('.outwrap');
+    if (!over()) return;
+    if (!code) {           // text slides: zoom the content out a little
+      let z = 1;
+      while (over() && z > 0.8) { z -= 0.02; [...sl.children].forEach(c => c.style.zoom = z); }
+      return;
+    }
+    if (out) {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:grid;grid-template-columns:1.45fr 1fr;gap:16px;align-items:start;direction:ltr';
+      code.before(row); row.append(code, out); out.style.marginTop = '0';
+    }
+    const els = sl.querySelectorAll('pre.code, .obody');
+    let fs = 14.5;
+    while (over() && fs > 10.5) { fs -= 0.5; els.forEach(e => { e.style.fontSize = fs + 'px'; e.style.lineHeight = '1.55'; }); }
+  });
+}
+window.addEventListener('load', () => (document.fonts ? document.fonts.ready : Promise.resolve()).then(fitTallSlides));
+</script>

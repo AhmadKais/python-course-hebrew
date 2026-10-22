@@ -1,0 +1,4433 @@
+<title>יחידה 11 · פונקציות</title>
+<style>
+/* ============================================================
+   DESIGN SYSTEM
+   Concept: the deck itself is staged as a code editor / terminal
+   window (title-bar dots, file tab) — grounded in the subject
+   (learning to code) rather than a generic slide template.
+   Committed single dark "editor" world by design (like a themed
+   terminal), the same way a themed arcade screen stays single-mode.
+   Font stack is an intentional native Hebrew system stack: the
+   Artifact sandbox blocks external font fetches, so rather than
+   link a webfont that silently falls back, we design directly
+   for the Hebrew system faces students' machines already have.
+   ============================================================ */
+:root{
+  --bg:            #0f1420;
+  --bg-panel:      #161c2c;
+  --bg-panel-2:    #1b2338;
+  --bg-titlebar:   #10151f;
+  --ink:           #e9edf6;
+  --ink-dim:       #939bb8;
+  --ink-faint:     #5c6485;
+  --line:          #2a3350;
+  --line-soft:     #212a44;
+
+  --blue:          #55c6f2;
+  --blue-dim:      #2d4a63;
+  --gold:          #ffd166;
+  --gold-dim:      #5a4a2c;
+  --coral:         #ff7a7a;
+  --coral-dim:     #5a2f34;
+  --green:         #6fe3b4;
+  --green-dim:     #204538;
+  --violet:        #bda2f2;
+  --violet-dim:    #3a2f57;
+
+  --font-display: "Rubik", "Segoe UI Variable Display", "Segoe UI", "Arial Hebrew", "Noto Sans Hebrew", "Heebo", "Arial", sans-serif;
+  --font-body:    "Assistant", "Segoe UI", "Arial Hebrew", "Noto Sans Hebrew", "Heebo", "Arial", sans-serif;
+  --font-mono:    "JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace, "SF Mono", Consolas, "Courier New", monospace;
+
+  --radius: 18px;
+  --shadow: 0 30px 80px -20px rgba(0,0,0,.65), 0 10px 30px -12px rgba(0,0,0,.5);
+}
+:root[data-theme="light"], :root[data-theme="dark"]{
+  /* Deliberately single-themed (see note above) — both branches keep the editor palette. */
+  --bg:#0f1420; --bg-panel:#161c2c; --bg-panel-2:#1b2338; --bg-titlebar:#10151f;
+  --ink:#e9edf6; --ink-dim:#939bb8; --ink-faint:#5c6485; --line:#2a3350; --line-soft:#212a44;
+}
+
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0;
+  background:
+    radial-gradient(1100px 620px at 12% -8%, #1a2440 0%, transparent 60%),
+    radial-gradient(900px 560px at 108% 8%, #1c1f3a 0%, transparent 55%),
+    var(--bg);
+  color:var(--ink);
+  font-family:var(--font-body);
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{ background:var(--blue); color:#0f1420; }
+
+/* ---------- stage & deck window ---------- */
+.stage{
+  position:fixed; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  padding:clamp(10px,3vh,34px) clamp(10px,3vw,34px);
+}
+.deck{
+  position:relative;
+  width:min(1180px, 96vw);
+  height:min(720px, 92vh);
+  background:linear-gradient(180deg, var(--bg-panel), var(--bg-panel-2));
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  display:flex; flex-direction:column;
+  overflow:hidden;
+}
+.titlebar{
+  display:flex; align-items:center; gap:14px;
+  padding:12px 18px;
+  background:var(--bg-titlebar);
+  border-bottom:1px solid var(--line);
+  direction:ltr; /* window chrome is a UI artifact, always LTR like a real editor */
+}
+.tb-dots{ display:flex; gap:7px; }
+.tb-dots span{ width:11px; height:11px; border-radius:50%; display:block; }
+.tb-dots span:nth-child(1){ background:#ff6159; }
+.tb-dots span:nth-child(2){ background:#ffbd2e; }
+.tb-dots span:nth-child(3){ background:#28c93f; }
+.tb-tab{
+  font-family:var(--font-mono);
+  font-size:12.5px;
+  color:var(--ink-dim);
+  background:var(--bg-panel);
+  border:1px solid var(--line);
+  border-bottom:none;
+  padding:5px 12px 6px;
+  border-radius:8px 8px 0 0;
+  margin-inline-start:6px;
+}
+.tb-tab b{ color:var(--gold); font-weight:600; }
+.tb-spacer{ flex:1; }
+.tb-progress-label{
+  font-family:var(--font-mono); font-size:12px; color:var(--ink-faint);
+  font-variant-numeric:tabular-nums;
+}
+
+.progress-track{ height:3px; background:var(--line-soft); position:relative; }
+.progress-fill{ position:absolute; inset-inline-start:0; top:0; bottom:0; width:0%;
+  background:linear-gradient(90deg, var(--blue), var(--green));
+  transition:width .35s ease; }
+
+/* ---------- slide viewport ---------- */
+.viewport{ position:relative; flex:1; overflow:hidden; }
+.slide{
+  position:absolute; inset:0;
+  display:flex; flex-direction:column;
+  padding:clamp(26px,4.4vh,52px) clamp(34px,6vw,76px);
+  opacity:0; transform:translateY(14px) scale(.99);
+  pointer-events:none;
+  transition:opacity .38s ease, transform .38s ease;
+  overflow-y:auto;
+  direction:rtl;
+}
+.slide.active{ opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
+@media (prefers-reduced-motion: reduce){
+  .slide{ transition:opacity .01s linear; transform:none; }
+}
+
+.eyebrow{
+  font-family:var(--font-mono); font-size:13px; letter-spacing:.02em;
+  color:var(--blue); display:flex; align-items:center; gap:8px; margin-bottom:14px;
+  direction:ltr; justify-content:flex-end;
+}
+.eyebrow .dot{ width:6px; height:6px; border-radius:50%; background:var(--blue); }
+
+h1.slide-title{
+  font-family:var(--font-display); font-weight:700;
+  font-size:clamp(28px,4.4vh,44px); line-height:1.15; margin:0 0 .4em;
+  text-wrap:balance; color:var(--ink);
+}
+h1.slide-title .accent{ color:var(--gold); }
+h2.slide-sub{
+  font-family:var(--font-body); font-weight:500; color:var(--ink-dim);
+  font-size:clamp(15px,2.2vh,19px); margin:0 0 1.1em; line-height:1.6; max-width:62ch;
+}
+
+.body-text{ font-size:clamp(15px,2.1vh,18px); line-height:1.75; color:var(--ink); max-width:70ch; }
+.body-text + .body-text{ margin-top:.8em; }
+
+/* ---------- title slide ---------- */
+.slide.title-slide{ align-items:center; justify-content:center; text-align:center; }
+.title-slide .kicker{
+  font-family:var(--font-mono); color:var(--green); font-size:14px;
+  border:1px solid var(--green-dim); background:rgba(111,227,180,.08);
+  padding:6px 16px; border-radius:999px; margin-bottom:26px; direction:ltr;
+}
+.title-slide h1{
+  font-family:var(--font-display); font-weight:800;
+  font-size:clamp(38px,7vh,68px); line-height:1.08; margin:0 0 .3em; text-wrap:balance;
+}
+.title-slide .py-mark{ color:var(--blue); }
+.title-slide .py-mark2{ color:var(--gold); }
+.title-slide p{ color:var(--ink-dim); font-size:clamp(16px,2.4vh,21px); max-width:56ch; margin:0 auto; line-height:1.6; }
+.prompt-line{
+  margin-top:36px; font-family:var(--font-mono); color:var(--ink-faint); font-size:15px; direction:ltr;
+}
+.prompt-line .caret{ display:inline-block; width:9px; height:1.1em; background:var(--green); margin-inline-start:4px; vertical-align:-2px;
+  animation:blink 1.1s steps(1) infinite; }
+@keyframes blink{ 50%{ opacity:0; } }
+@media (prefers-reduced-motion: reduce){ .prompt-line .caret{ animation:none; } }
+
+/* ---------- icon grid (industries etc.) ---------- */
+.grid{ display:grid; gap:16px; margin-top:8px; }
+.grid.cols-4{ grid-template-columns:repeat(4,1fr); }
+.grid.cols-3{ grid-template-columns:repeat(3,1fr); }
+.grid.cols-2{ grid-template-columns:repeat(2,1fr); }
+.card{
+  background:var(--bg-titlebar); border:1px solid var(--line); border-radius:14px;
+  padding:16px 16px 15px; display:flex; flex-direction:column; gap:8px;
+}
+.card .icon{ width:34px; height:34px; }
+.card h3{ margin:2px 0 0; font-family:var(--font-display); font-size:15.5px; font-weight:700; color:var(--ink); }
+.card p{ margin:0; font-size:13.5px; line-height:1.55; color:var(--ink-dim); }
+.card.blue .icon{ color:var(--blue); } .card.blue{ border-color:var(--blue-dim); }
+.card.gold .icon{ color:var(--gold); } .card.gold{ border-color:var(--gold-dim); }
+.card.coral .icon{ color:var(--coral); } .card.coral{ border-color:var(--coral-dim); }
+.card.green .icon{ color:var(--green); } .card.green{ border-color:var(--green-dim); }
+.card.violet .icon{ color:var(--violet); } .card.violet{ border-color:var(--violet-dim); }
+
+/* ---------- badge chips (companies, tags) ---------- */
+.chiprow{ display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; direction:rtl; }
+.chip{
+  font-family:var(--font-mono); font-size:13.5px; color:var(--ink);
+  background:var(--bg-titlebar); border:1px solid var(--line);
+  padding:7px 14px; border-radius:999px; direction:ltr;
+}
+
+/* ---------- two-col layout ---------- */
+.split{ display:grid; grid-template-columns:1.1fr .9fr; gap:34px; align-items:center; flex:1; }
+.split .art{ display:flex; align-items:center; justify-content:center; }
+
+/* ---------- code block ---------- */
+.codewrap{
+  background:#0c1019; border:1px solid var(--line); border-radius:12px; overflow:hidden;
+  direction:ltr; text-align:left;
+}
+.codewrap .chead{
+  display:flex; align-items:center; gap:8px; padding:8px 12px; background:var(--bg-titlebar);
+  border-bottom:1px solid var(--line); font-family:var(--font-mono); font-size:11.5px; color:var(--ink-faint);
+}
+.codewrap .chead b{ color:var(--green); font-weight:600; }
+pre.code{
+  margin:0; padding:16px 18px; font-family:var(--font-mono); font-size:14.5px; line-height:1.7;
+  overflow-x:auto; direction:ltr; text-align:left; white-space:pre;
+}
+.tok-kw{ color:var(--violet); font-weight:600; }
+.tok-str{ color:var(--gold); }
+.tok-num{ color:var(--coral); }
+.tok-com{ color:var(--ink-faint); font-style:italic; }
+.tok-fn{ color:var(--blue); }
+.tok-var{ color:#9fd3ff; }
+.tok-punc{ color:var(--ink-dim); }
+
+.outwrap{ background:#0a0d14; border:1px solid var(--line); border-radius:12px; overflow:hidden; direction:ltr; text-align:left; }
+.outwrap .ohead{ padding:8px 12px; background:var(--bg-titlebar); border-bottom:1px solid var(--line);
+  font-family:var(--font-mono); font-size:11.5px; color:var(--ink-faint); }
+.outwrap .obody{ padding:14px 18px; font-family:var(--font-mono); font-size:14.5px; color:var(--green); white-space:pre-wrap; line-height:1.7; }
+
+/* ---------- exercise list ---------- */
+.exlist{ list-style:none; margin:10px 0 0; padding:0; display:flex; flex-direction:column; gap:12px; }
+.exlist li{
+  display:flex; gap:14px; align-items:flex-start;
+  background:var(--bg-titlebar); border:1px solid var(--line); border-radius:12px; padding:13px 16px;
+}
+.exnum{
+  flex:none; width:26px; height:26px; border-radius:8px; background:var(--bg-panel-2);
+  border:1px solid var(--line); display:flex; align-items:center; justify-content:center;
+  font-family:var(--font-mono); font-size:13px; color:var(--ink-dim); font-variant-numeric:tabular-nums;
+}
+.exbody{ flex:1; font-size:15px; line-height:1.6; }
+.exbody code{ font-family:var(--font-mono); background:var(--bg-panel-2); padding:1px 6px; border-radius:5px; color:var(--gold); direction:ltr; unicode-bidi:isolate; display:inline-block; }
+.tag{
+  flex:none; font-family:var(--font-mono); font-size:11px; padding:3px 9px; border-radius:999px;
+  height:fit-content; direction:ltr;
+}
+.tag.easy{ background:var(--green-dim); color:var(--green); }
+.tag.med{ background:var(--gold-dim); color:var(--gold); }
+.tag.hard{ background:var(--coral-dim); color:var(--coral); }
+
+/* ---------- callouts ---------- */
+.callout{ display:flex; gap:12px; align-items:flex-start; padding:14px 16px; border-radius:12px; margin-top:14px; }
+.callout .icon{ width:22px; height:22px; flex:none; margin-top:2px; }
+.callout p{ margin:0; font-size:14.5px; line-height:1.6; }
+.callout.warn{ background:rgba(255,122,122,.08); border:1px solid var(--coral-dim); }
+.callout.warn .icon{ color:var(--coral); }
+.callout.tip{ background:rgba(111,227,180,.08); border:1px solid var(--green-dim); }
+.callout.tip .icon{ color:var(--green); }
+
+ul.plain, ol.plain{ margin:10px 0 0; padding-inline-start:1.3em; display:flex; flex-direction:column; gap:9px; }
+ul.plain li, ol.plain li{ font-size:15.5px; line-height:1.65; }
+ul.plain li::marker{ color:var(--blue); }
+strong.hl{ color:var(--gold); font-weight:700; }
+strong.hl2{ color:var(--blue); font-weight:700; }
+
+/* ---------- roadmap timeline ---------- */
+.roadmap{ display:flex; flex-direction:column; gap:10px; margin-top:10px; }
+.rgroup{ display:flex; gap:14px; align-items:stretch; }
+.rgroup .rlabel{
+  flex:none; width:118px; display:flex; align-items:center; justify-content:center; text-align:center;
+  font-family:var(--font-display); font-weight:700; font-size:13.5px; border-radius:10px; padding:10px 6px;
+}
+.rgroup .ritems{ flex:1; display:flex; flex-wrap:wrap; gap:8px; align-content:center; }
+.rchip{ background:var(--bg-titlebar); border:1px solid var(--line); border-radius:8px; padding:7px 12px; font-size:13px; color:var(--ink-dim); }
+.rgroup.p1 .rlabel{ background:var(--blue-dim); color:var(--blue); }
+.rgroup.p2 .rlabel{ background:var(--gold-dim); color:var(--gold); }
+.rgroup.p3 .rlabel{ background:var(--violet-dim); color:var(--violet); }
+.rgroup.p4 .rlabel{ background:var(--green-dim); color:var(--green); }
+
+/* ---------- controls ---------- */
+.controls{
+  position:absolute; bottom:16px; inset-inline-end:16px; display:flex; gap:8px; z-index:5;
+  direction:ltr;
+}
+.ctrl-btn{
+  width:40px; height:40px; border-radius:10px; border:1px solid var(--line);
+  background:var(--bg-titlebar); color:var(--ink-dim); display:flex; align-items:center; justify-content:center;
+  cursor:pointer; transition:background .15s, color .15s, border-color .15s;
+}
+.ctrl-btn:hover{ background:var(--bg-panel-2); color:var(--ink); border-color:var(--blue-dim); }
+.ctrl-btn:focus-visible{ outline:2px solid var(--blue); outline-offset:2px; }
+.ctrl-btn svg{ width:18px; height:18px; }
+
+.dots-nav{ position:absolute; bottom:20px; inset-inline-start:20px; display:flex; gap:6px; z-index:5; direction:ltr; }
+.dots-nav button{
+  width:7px; height:7px; border-radius:50%; border:none; background:var(--line); cursor:pointer; padding:0;
+}
+.dots-nav button.on{ background:var(--blue); width:20px; border-radius:4px; }
+
+.hint{ position:absolute; bottom:18px; left:50%; transform:translateX(-50%); font-family:var(--font-mono);
+  font-size:11.5px; color:var(--ink-faint); z-index:4; }
+
+@media (max-width:760px){
+  .split{ grid-template-columns:1fr; }
+  .grid.cols-4{ grid-template-columns:repeat(2,1fr); }
+  .grid.cols-3{ grid-template-columns:repeat(2,1fr); }
+}
+
+/* ---------- trace tables (unit 7+) ---------- */
+table.trace{ border-collapse:collapse; margin-top:12px; font-size:14px; direction:rtl; }
+table.trace th, table.trace td{ border:1px solid var(--line); padding:6px 12px; text-align:center; }
+table.trace th{ background:var(--bg-titlebar); color:var(--ink-dim); font-family:var(--font-display); font-weight:700; font-size:13px; }
+table.trace td{ font-family:var(--font-mono); color:var(--ink); direction:ltr; unicode-bidi:isolate; }
+table.trace td.t{ color:var(--green); } table.trace td.f{ color:var(--coral); }
+table.trace td.o{ color:var(--gold); }
+
+pre.code .tok-str, pre.code .tok-com{ unicode-bidi:isolate; }
+</style>
+
+<div class="stage">
+  <div class="deck" id="deck">
+    <div class="titlebar">
+      <div class="tb-dots"><span></span><span></span><span></span></div>
+      <div class="tb-tab"><b>py</b>_course — <span id="tb-name">00_intro.py</span></div>
+      <div class="tb-spacer"></div>
+      <div class="tb-progress-label"><span id="pg-cur">1</span> / <span id="pg-total">1</span></div>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="viewport" id="viewport"></div>
+    <div class="dots-nav" id="dotsNav"></div>
+    <div class="controls">
+      <button class="ctrl-btn" id="btnFs" title="מסך מלא" aria-label="מסך מלא">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4M20 15v4a1 1 0 0 1-1 1h-4"/></svg>
+      </button>
+      <button class="ctrl-btn" id="btnPrev" title="הקודם" aria-label="הקודם">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <button class="ctrl-btn" id="btnNext" title="הבא" aria-label="הבא">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<svg width="0" height="0" style="position:absolute">
+<defs>
+<symbol id="ic-brain" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M9 4a3 3 0 0 0-3 3v.3A3 3 0 0 0 4 10v1a3 3 0 0 0 1 2.2V15a3 3 0 0 0 3 3h1v2M9 4a3 3 0 0 1 3 3v13M9 4h1M4 10h2M4.2 13.5H7"/>
+  <path d="M15 4a3 3 0 0 1 3 3v.3a3 3 0 0 1 2 2.7v1a3 3 0 0 1-1 2.2V15a3 3 0 0 1-3 3h-1"/>
+  <path d="M15 4a3 3 0 0 0-3 3M18 10h2M19.8 13.5H17"/>
+</symbol>
+<symbol id="ic-terminal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/>
+</symbol>
+<symbol id="ic-cpu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9" y="9" width="6" height="6" rx="1"/>
+  <path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/>
+</symbol>
+<symbol id="ic-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.7 2.6 4 5.7 4 9s-1.3 6.4-4 9c-2.7-2.6-4-5.7-4-9s1.3-6.4 4-9Z"/>
+</symbol>
+<symbol id="ic-robot" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="5" y="9" width="14" height="10" rx="2"/><circle cx="9.5" cy="14" r="1.2" fill="currentColor" stroke="none"/><circle cx="14.5" cy="14" r="1.2" fill="currentColor" stroke="none"/>
+  <path d="M12 9V6M9 6h6M4 13H2M22 13h-2"/>
+</symbol>
+<symbol id="ic-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M4 20V10M10 20V4M16 20v-7M4 20h16"/>
+</symbol>
+<symbol id="ic-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12 3l7 3v6c0 4.5-3 7.7-7 9-4-1.3-7-4.5-7-9V6l7-3Z"/><path d="M9 12l2 2 4-4"/>
+</symbol>
+<symbol id="ic-network" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="4.5" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/>
+  <path d="M12 6.5v4M12 10.5 6 16M12 10.5l6 5.5"/>
+</symbol>
+<symbol id="ic-rocket" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12 2c3 1.5 5 5 5 9 0 2-1 4-2 5l-3 2-3-2c-1-1-2-3-2-5 0-4 2-7.5 5-9Z"/><circle cx="12" cy="9" r="1.6"/>
+  <path d="M9 16l-2 4M15 16l2 4M9 20h6"/>
+</symbol>
+<symbol id="ic-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="12" r="3.2"/><path d="M12 3v2.4M12 18.6V21M21 12h-2.4M5.4 12H3M18 6l-1.7 1.7M7.7 16.3 6 18M18 18l-1.7-1.7M7.7 7.7 6 6"/>
+</symbol>
+<symbol id="ic-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5v-15Z"/><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20"/>
+</symbol>
+<symbol id="ic-gamepad" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M6 9h12l2 7a2 2 0 0 1-3.5 1.8L15 16H9l-1.5 1.8A2 2 0 0 1 4 16l2-7Z"/><path d="M8 12h2M9 11v2M16 11.5h.01M18 13h.01"/>
+</symbol>
+<symbol id="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M20 6 9 17l-5-5"/>
+</symbol>
+<symbol id="ic-warn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12 3 2 20h20L12 3Z"/><path d="M12 9v5M12 17h.01"/>
+</symbol>
+<symbol id="ic-bulb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M9 18h6M10 21h4M7 9a5 5 0 1 1 8.7 3.4c-.8.9-1.7 1.7-1.7 3.1v.5H10v-.5c0-1.4-.9-2.2-1.7-3.1A5 5 0 0 1 7 9Z"/>
+</symbol>
+<symbol id="ic-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/>
+</symbol>
+</defs>
+</svg>
+
+<script>
+/* ============================================================
+   SLIDE DATA — deck 11: פונקציות – הגדרה, פרמטרים והחזרת ערכים
+   ============================================================ */
+const FILE_NAME = "11_functions.py";
+const SLIDES = [
+  {
+    "type": "title",
+    "kicker": "תקשוב ומחשבים &middot; יחידה 11",
+    "title": "<span class=\"py-mark\">פונקציות</span> — קוד <span class=\"py-mark2\">עם שם</span>",
+    "sub": "כותבים פעם אחת, משתמשים כמה פעמים שרוצים. היום נלמד להגדיר פונקציות משלנו, להעביר להן ערכים ולקבל מהן תשובה.",
+    "prompt": ">>> def greet(name): <span class=\"caret\"></span>"
+  },
+  {
+    "type": "content",
+    "eyebrow": "תזכורת מהיחידה הקודמת",
+    "title": "מה <span class='accent'>למדנו</span> ביחידה 10?",
+    "body": "\n  <ul class=\"plain\">\n    <li><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">lst.sort()</code> ממיינת במקום; <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">sorted(lst)</code> מחזירה רשימה חדשה</li>\n    <li><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">reverse=True</code> — מיון יורד</li>\n    <li><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">a, b = b, a</code> — החלפת שני ערכים</li>\n    <li>מיון בועות: משווים שכנים, מחליפים, והגדול \"צף\" לסוף</li>\n  </ul>"
+  },
+  {
+    "type": "content",
+    "eyebrow": "מטרות השיעור",
+    "title": "מה <span class='accent'>נלמד</span> היום?",
+    "body": "\n  <ul class=\"plain\">\n    <li>מהי פונקציה, ולמה כדאי לפרק תכנית לפונקציות</li>\n    <li>הגדרה עם <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">def</code> וקריאה לפונקציה</li>\n    <li><strong class=\"hl\">פרמטרים</strong> וארגומנטים — להעביר ערכים לפונקציה</li>\n    <li><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">return</code> — לקבל תשובה מהפונקציה, וההבדל בינו לבין <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">print</code></li>\n    <li>ערכי ברירת מחדל לפרמטרים</li>\n    <li><strong class=\"hl2\">טווח הכרה</strong> (scope) — משתנים מקומיים וגלובליים</li>\n  </ul>"
+  },
+  {
+    "type": "content",
+    "eyebrow": "אתם כבר מכירים",
+    "title": "השתמשתם <span class='accent'>בפונקציות</span> מהיום הראשון",
+    "body": "\n  <div class=\"grid cols-3\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">print(\"hi\")</span></h3><p>מקבלת ערך, מציגה אותו</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">len(\"abc\")</span></h3><p>מקבלת ערך, <strong>מחזירה</strong> 3</p></div>\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">input(\"?\")</span></h3><p>מחזירה מה שהמשתמש הקליד</p></div>\n    <div class=\"card green\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">max([4, 9])</span></h3><p>מחזירה את הגדול</p></div>\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">int(\"42\")</span></h3><p>ממירה ומחזירה מספר</p></div>\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">range(5)</span></h3><p>מחזירה טווח של מספרים</p></div>\n  </div>\n  <p class=\"body-text\" style=\"margin-top:14px\">את כולן מישהו כתב. היום נלמד לכתוב <strong class=\"hl2\">משלנו</strong>.</p>"
+  },
+  {
+    "type": "content",
+    "eyebrow": "למה בכלל",
+    "title": "שלוש סיבות <span class='accent'>לפונקציות</span>",
+    "body": "\n  <div class=\"grid cols-3\">\n    <div class=\"card blue\"><h3>בלי כפילויות</h3><p>קוד שחוזר שלוש פעמים נכתב פעם אחת. מתקנים באג במקום אחד — והוא מתוקן בכל מקום.</p></div>\n    <div class=\"card gold\"><h3>פירוק לחלקים</h3><p>בעיה גדולה = כמה בעיות קטנות. כל פונקציה פותרת אחת, ואפשר לבדוק אותה לבד.</p></div>\n    <div class=\"card green\"><h3>קוד קריא</h3><p><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">if is_prime(n):</code> מסביר את עצמו — יותר מעשר שורות של לולאה.</p></div>\n  </div>"
+  },
+  {
+    "type": "code",
+    "eyebrow": "התחביר",
+    "title": "מגדירים <span class='accent'>פונקציה</span>",
+    "desc": "def, שם, סוגריים ונקודתיים. גוף הפונקציה מוזח — בדיוק כמו בתוך if:",
+    "code": [
+      {
+        "t": "tok-kw",
+        "c": "def"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "say_hello"
+      },
+      {
+        "t": "tok-punc",
+        "c": "():"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"שלום!\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"ברוכים הבאים לקורס\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "say_hello"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "say_hello"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "שלום!\nברוכים הבאים לקורס\nשלום!\nברוכים הבאים לקורס"
+  },
+  {
+    "type": "content",
+    "eyebrow": "הגדרה מול קריאה",
+    "title": "<span class='accent'>def</span> לא מריץ כלום",
+    "body": "\n  <div class=\"grid cols-2\">\n    <div class=\"card blue\"><h3>הגדרה</h3><p><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">def say_hello():</code> — מלמדת את פייתון מתכון חדש. שום דבר עוד לא מודפס.</p></div>\n    <div class=\"card gold\"><h3>קריאה</h3><p><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">say_hello()</code> — מבצעת את המתכון. כל קריאה מריצה את הגוף מההתחלה.</p></div>\n  </div>\n  <div class=\"callout warn\" style=\"margin-top:16px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-warn\"/></svg>\n    <p>חייבים להגדיר <strong>לפני</strong> שקוראים. קריאה לפונקציה שעוד לא הוגדרה — <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">NameError</code>. וגם: בלי הסוגריים, <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">say_hello</code> לבד לא קורא לפונקציה.</p>\n  </div>"
+  },
+  {
+    "type": "code",
+    "eyebrow": "פרמטרים",
+    "title": "מעבירים <span class='accent'>ערך</span> לפונקציה",
+    "desc": "בתוך הסוגריים של def כותבים שם — פרמטר. בקריאה מעבירים לו ערך:",
+    "code": [
+      {
+        "t": "tok-kw",
+        "c": "def"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "greet"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "name"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"שלום\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "name"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "greet"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"דנה\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "greet"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"עומר\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "שלום דנה\nשלום עומר"
+  },
+  {
+    "type": "content",
+    "eyebrow": "מושגים",
+    "title": "<span class='accent'>פרמטר</span> וארגומנט",
+    "body": "\n  <div class=\"grid cols-2\">\n    <div class=\"card blue\"><h3>פרמטר (parameter)</h3><p>השם בהגדרה: <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">def greet(name):</code>. משתנה שקיים רק בתוך הפונקציה.</p></div>\n    <div class=\"card gold\"><h3>ארגומנט (argument)</h3><p>הערך בקריאה: <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">greet(\"דנה\")</code>. הוא מוצב לתוך הפרמטר.</p></div>\n  </div>\n  <p class=\"body-text\" style=\"margin-top:16px\">בכל קריאה פייתון מבצעת בפועל <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">name = \"דנה\"</code> — ואז מריצה את הגוף.</p>"
+  },
+  {
+    "type": "code",
+    "eyebrow": "כמה פרמטרים",
+    "title": "מפרידים <span class='accent'>בפסיקים</span>",
+    "desc": "הארגומנטים מוצבים לפרמטרים לפי הסדר:",
+    "code": [
+      {
+        "t": "tok-kw",
+        "c": "def"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "rectangle"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "width"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "height"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"שטח:\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "width"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "*"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "height"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"היקף:\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "2"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "*"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "width"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "+"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "height"
+      },
+      {
+        "t": "tok-punc",
+        "c": "))"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "rectangle"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-num",
+        "c": "4"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "3"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "rectangle"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-num",
+        "c": "10"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "1"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "שטח: 12\nהיקף: 14\nשטח: 10\nהיקף: 22"
+  },
+  {
+    "type": "exercises",
+    "eyebrow": "תרגול מיידי",
+    "title": "נסו <span class='accent'>עכשיו</span>",
+    "desc": "",
+    "items": [
+      {
+        "tag": "easy",
+        "text": "כתבו פונקציה <code>line()</code> שמדפיסה 20 כוכביות. קראו לה שלוש פעמים."
+      },
+      {
+        "tag": "easy",
+        "text": "כתבו פונקציה <code>line(n)</code> שמדפיסה n כוכביות."
+      },
+      {
+        "tag": "med",
+        "text": "כתבו פונקציה <code>box(w, h)</code> שמדפיסה מלבן של כוכביות ברוחב w ובגובה h."
+      },
+      {
+        "tag": "med",
+        "text": "מה יקרה אם נקרא ל-<code>rectangle(4)</code> עם ארגומנט אחד בלבד? נסו."
+      }
+    ]
+  },
+  {
+    "type": "code",
+    "eyebrow": "return",
+    "title": "פונקציה <span class='accent'>שמחזירה</span> תשובה",
+    "desc": "return שולח ערך בחזרה למקום שממנו קראו לפונקציה:",
+    "code": [
+      {
+        "t": "tok-kw",
+        "c": "def"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "square"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "x"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "return"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "x"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "*"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "x"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "result"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "square"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-num",
+        "c": "5"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "result"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-fn",
+        "c": "square"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-num",
+        "c": "3"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "+"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "square"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-num",
+        "c": "4"
+      },
+      {
+        "t": "tok-punc",
+        "c": "))"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "25\n25"
+  },
+  {
+    "type": "content",
+    "eyebrow": "ההבדל החשוב ביותר היום",
+    "title": "<span class='accent'>return</span> מול print",
+    "body": "\n  <div class=\"grid cols-2\">\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">print(x * x)</span></h3><p>מציג את התוצאה על המסך — <strong>למשתמש</strong>. התכנית עצמה לא יכולה להמשיך לעבוד עם הערך.</p></div>\n    <div class=\"card green\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">return x * x</span></h3><p>מחזיר את התוצאה <strong>לקוד</strong> שקרא. אפשר לשמור במשתנה, לחבר, להשוות, להעביר לפונקציה אחרת.</p></div>\n  </div>\n  <div class=\"callout tip\" style=\"margin-top:16px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>כלל אצבע: פונקציה ש<strong>מחשבת</strong> משהו — מחזירה אותו עם <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">return</code>. את ההדפסה משאירים למי שקרא לה.</p>\n  </div>"
+  },
+  {
+    "type": "code",
+    "eyebrow": "מה קורה בלי return?",
+    "title": "הפונקציה מחזירה <span class='accent'>None</span>",
+    "desc": "פונקציה שמדפיסה במקום להחזיר — אי אפשר להשתמש בתוצאה שלה:",
+    "code": [
+      {
+        "t": "tok-kw",
+        "c": "def"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "square_print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "x"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "x"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "*"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "x"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "r"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "square_print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-num",
+        "c": "5"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"r =\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "r"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "25\nr = None"
+  },
+  {
+    "type": "code",
+    "eyebrow": "return עוצר",
+    "title": "return <span class='accent'>יוצא מיד</span>",
+    "desc": "ברגע ש-return מתבצע, הפונקציה נגמרת — שורות אחריו לא ירוצו:",
+    "code": [
+      {
+        "t": "tok-kw",
+        "c": "def"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "sign"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "n"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "if"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "n"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "&gt;"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "0"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-kw",
+        "c": "return"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"חיובי\""
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "if"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "n"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "&lt;"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "0"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-kw",
+        "c": "return"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"שלילי\""
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "return"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"אפס\""
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-fn",
+        "c": "sign"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-num",
+        "c": "7"
+      },
+      {
+        "t": "tok-punc",
+        "c": "))"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-fn",
+        "c": "sign"
+      },
+      {
+        "t": "tok-punc",
+        "c": "(-"
+      },
+      {
+        "t": "tok-num",
+        "c": "2"
+      },
+      {
+        "t": "tok-punc",
+        "c": "))"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-fn",
+        "c": "sign"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-num",
+        "c": "0"
+      },
+      {
+        "t": "tok-punc",
+        "c": "))"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "חיובי\nשלילי\nאפס"
+  },
+  {
+    "type": "code",
+    "eyebrow": "פונקציה בוליאנית",
+    "title": "שאלה של <span class='accent'>כן / לא</span>",
+    "desc": "פונקציה שמחזירה True או False נכנסת ישר לתוך if — והקוד נקרא כמו משפט:",
+    "code": [
+      {
+        "t": "tok-kw",
+        "c": "def"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "is_even"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "n"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "return"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "n"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "%"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "2"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "=="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "0"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "x"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "["
+      },
+      {
+        "t": "tok-num",
+        "c": "3"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "8"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "11"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "20"
+      },
+      {
+        "t": "tok-punc",
+        "c": "]:"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "if"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "is_even"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "x"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "x"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"זוגי\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "8 זוגי\n20 זוגי"
+  },
+  {
+    "type": "code",
+    "eyebrow": "פונקציה על רשימה",
+    "title": "מעבירים <span class='accent'>רשימה</span> כפרמטר",
+    "desc": "כל טיפוס אפשר להעביר — גם רשימה. הנה הממוצע מיחידה 9, ארוז בפונקציה:",
+    "code": [
+      {
+        "t": "tok-kw",
+        "c": "def"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "average"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "nums"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "total"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "0"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "n"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "nums"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-var",
+        "c": "total"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "+="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "return"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "total"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "/"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "len"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "nums"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-fn",
+        "c": "average"
+      },
+      {
+        "t": "tok-punc",
+        "c": "(["
+      },
+      {
+        "t": "tok-num",
+        "c": "85"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "92"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "78"
+      },
+      {
+        "t": "tok-punc",
+        "c": "]))"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-fn",
+        "c": "average"
+      },
+      {
+        "t": "tok-punc",
+        "c": "(["
+      },
+      {
+        "t": "tok-num",
+        "c": "10"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "20"
+      },
+      {
+        "t": "tok-punc",
+        "c": "]))"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "85.0\n15.0"
+  },
+  {
+    "type": "code",
+    "eyebrow": "פונקציה קוראת לפונקציה",
+    "title": "בונים <span class='accent'>שכבות</span>",
+    "desc": "פונקציות קטנות משמשות אבני בניין לפונקציות גדולות:",
+    "code": [
+      {
+        "t": "tok-kw",
+        "c": "def"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "is_prime"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "n"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "if"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "n"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "&lt;"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "2"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-kw",
+        "c": "return"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "False"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "d"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "range"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-num",
+        "c": "2"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "n"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-kw",
+        "c": "if"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "n"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "%"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "d"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "=="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "0"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "            "
+      },
+      {
+        "t": "tok-kw",
+        "c": "return"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "False"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "return"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "True"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-kw",
+        "c": "def"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "primes_up_to"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "limit"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "result"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "[]"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "x"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "range"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "limit"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "+"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "1"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-kw",
+        "c": "if"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "is_prime"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "x"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "            "
+      },
+      {
+        "t": "tok-var",
+        "c": "result"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "append"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "x"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "return"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "result"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-fn",
+        "c": "primes_up_to"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-num",
+        "c": "20"
+      },
+      {
+        "t": "tok-punc",
+        "c": "))"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "[2, 3, 5, 7, 11, 13, 17, 19]"
+  },
+  {
+    "type": "content",
+    "eyebrow": "טבלת מעקב",
+    "title": "מה קורה <span class='accent'>בקריאה</span>?",
+    "body": "\n  <p class=\"body-text\">עוקבים אחרי <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">print(sign(-2))</code> מהשקף הקודם:</p>\n  <table class=\"trace\">\n    <tr><th>שלב</th><th>מה קורה</th><th>n</th></tr>\n    <tr><td>1</td><td style=\"direction:rtl;font-family:var(--font-body)\">קריאה: הארגומנט -2 מוצב בפרמטר</td><td class=\"o\">-2</td></tr>\n    <tr><td>2</td><td>n &gt; 0 ?</td><td class=\"f\">False</td></tr>\n    <tr><td>3</td><td>n &lt; 0 ?</td><td class=\"t\">True</td></tr>\n    <tr><td>4</td><td>return \"שלילי\"</td><td>—</td></tr>\n    <tr><td>5</td><td style=\"direction:rtl;font-family:var(--font-body)\">חוזרים לנקודת הקריאה; print מדפיס</td><td>—</td></tr>\n  </table>\n  <p class=\"body-text\" style=\"margin-top:12px\">השורה <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">return \"אפס\"</code> לא מתבצעת בכלל — הפונקציה כבר יצאה בשלב 4.</p>"
+  },
+  {
+    "type": "exercises",
+    "eyebrow": "תרגול · return",
+    "title": "פונקציות <span class='accent'>שמחזירות</span>",
+    "desc": "כל פונקציה מחזירה ערך עם return — בלי print בתוכה:",
+    "items": [
+      {
+        "tag": "easy",
+        "text": "<code>max3(a, b, c)</code> — מחזירה את הגדול מבין שלושה מספרים (בלי <code>max</code>)."
+      },
+      {
+        "tag": "easy",
+        "text": "<code>is_vowel(ch)</code> — מחזירה True אם התו הוא a, e, i, o או u."
+      },
+      {
+        "tag": "med",
+        "text": "<code>count_vowels(word)</code> — מחזירה כמה תנועות יש במילה. השתמשו ב-<code>is_vowel</code>."
+      },
+      {
+        "tag": "med",
+        "text": "<code>grade_letter(score)</code> — מחזירה \"A\" ל-90 ומעלה, \"B\" ל-80–89, \"C\" ל-70–79, ו-\"F\" לשאר."
+      }
+    ]
+  },
+  {
+    "type": "code",
+    "eyebrow": "ברירת מחדל",
+    "title": "פרמטר עם <span class='accent'>ערך התחלתי</span>",
+    "desc": "אם לא מעבירים ארגומנט — משתמשים בערך שבהגדרה:",
+    "code": [
+      {
+        "t": "tok-kw",
+        "c": "def"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "power"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "base"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "exp"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-num",
+        "c": "2"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "return"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "base"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "**"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "exp"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-fn",
+        "c": "power"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-num",
+        "c": "5"
+      },
+      {
+        "t": "tok-punc",
+        "c": "))"
+      },
+      {
+        "t": "",
+        "c": "       "
+      },
+      {
+        "t": "tok-com",
+        "c": "# exp = 2"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-fn",
+        "c": "power"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-num",
+        "c": "2"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "10"
+      },
+      {
+        "t": "tok-punc",
+        "c": "))"
+      },
+      {
+        "t": "",
+        "c": "   "
+      },
+      {
+        "t": "tok-com",
+        "c": "# exp = 10"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "25\n1024"
+  },
+  {
+    "type": "code",
+    "eyebrow": "ארגומנט עם שם",
+    "title": "קוראים <span class='accent'>בשם</span> הפרמטר",
+    "desc": "אפשר לציין לאיזה פרמטר הולך כל ערך — ואז הסדר לא משנה. בדיוק כמו sep= ו-end= של print:",
+    "code": [
+      {
+        "t": "tok-kw",
+        "c": "def"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "describe"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "name"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "age"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "name"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"בן/בת\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "age"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "describe"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "age"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-num",
+        "c": "17"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "name"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"לין\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"a\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"b\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "sep"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"-\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "end"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"!\\n\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "לין בן/בת 17\na-b!"
+  },
+  {
+    "type": "code",
+    "eyebrow": "טווח הכרה (scope)",
+    "title": "משתנה <span class='accent'>מקומי</span>",
+    "desc": "משתנה שנוצר בתוך פונקציה קיים רק בתוכה. מבחוץ — הוא לא קיים:",
+    "code": [
+      {
+        "t": "tok-kw",
+        "c": "def"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "calc"
+      },
+      {
+        "t": "tok-punc",
+        "c": "():"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "secret"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "42"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"בפנים:\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "secret"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "calc"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"בחוץ:\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "secret"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "בפנים: 42\nTraceback (most recent call last):\n  ...\nNameError: name 'secret' is not defined"
+  },
+  {
+    "type": "code",
+    "eyebrow": "שני משתנים, שם אחד",
+    "title": "<span class='accent'>x</span> בפנים ≠ x בחוץ",
+    "desc": "השמה בתוך פונקציה יוצרת משתנה מקומי חדש — המשתנה הגלובלי לא משתנה:",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "x"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "10"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-kw",
+        "c": "def"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "change"
+      },
+      {
+        "t": "tok-punc",
+        "c": "():"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "x"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "99"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"בתוך הפונקציה:\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "x"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "change"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"מחוץ לפונקציה:\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "x"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "בתוך הפונקציה: 99\nמחוץ לפונקציה: 10"
+  },
+  {
+    "type": "content",
+    "eyebrow": "הכלל",
+    "title": "איך <span class='accent'>מוציאים</span> ערך מפונקציה?",
+    "body": "\n  <p class=\"body-text\">לא דרך משתנה גלובלי — אלא עם <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">return</code>. זה הנתיב הנקי היחיד: ערכים <strong class=\"hl\">נכנסים</strong> דרך פרמטרים, ו<strong class=\"hl2\">יוצאים</strong> דרך return.</p>\n  <div class=\"grid cols-2\" style=\"margin-top:14px\">\n    <div class=\"card coral\"><h3>❌ לא כך</h3><p>לשנות משתנה גלובלי מתוך הפונקציה (<code dir=\"ltr\" style=\"font-family:var(--font-mono)\">global x</code>) — קשה לעקוב מי שינה מה.</p></div>\n    <div class=\"card green\"><h3>✅ כך</h3><p><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">x = change(x)</code> — הפונקציה מחזירה ערך חדש, ומי שקרא מחליט מה לעשות איתו.</p></div>\n  </div>\n  <div class=\"callout warn\" style=\"margin-top:14px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-warn\"/></svg>\n    <p>יוצא דופן: רשימה שמועברת כפרמטר <strong>אפשר לשנות</strong> מתוך הפונקציה (<code dir=\"ltr\" style=\"font-family:var(--font-mono)\">lst.append</code>), כי היא mutable — הפונקציה מקבלת את אותה רשימה, לא העתק.</p>\n  </div>"
+  },
+  {
+    "type": "code",
+    "eyebrow": "רשימה כפרמטר",
+    "title": "הפונקציה משנה את <span class='accent'>המקור</span>",
+    "desc": "כך בדיוק עובדת sort — היא מקבלת רשימה ומשנה אותה במקום:",
+    "code": [
+      {
+        "t": "tok-kw",
+        "c": "def"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "add_bonus"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "grades"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "bonus"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "i"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "range"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-fn",
+        "c": "len"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "grades"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-var",
+        "c": "grades"
+      },
+      {
+        "t": "tok-punc",
+        "c": "["
+      },
+      {
+        "t": "tok-var",
+        "c": "i"
+      },
+      {
+        "t": "tok-punc",
+        "c": "]"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "+="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "bonus"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "my_grades"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "["
+      },
+      {
+        "t": "tok-num",
+        "c": "70"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "85"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "90"
+      },
+      {
+        "t": "tok-punc",
+        "c": "]"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "add_bonus"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "my_grades"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "5"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "my_grades"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "[75, 90, 95]"
+  },
+  {
+    "type": "content",
+    "eyebrow": "סגנון",
+    "title": "פונקציה <span class='accent'>טובה</span>",
+    "body": "\n  <div class=\"grid cols-2\">\n    <div class=\"card blue\"><h3>שם שהוא פועל</h3><p><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">calc_average</code>, <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">is_prime</code>, <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">print_menu</code> — השם אומר מה היא עושה.</p></div>\n    <div class=\"card gold\"><h3>עושה דבר אחד</h3><p>אם צריך \"וגם\" כדי לתאר אותה — כנראה שאלה שתי פונקציות.</p></div>\n    <div class=\"card green\"><h3>קצרה</h3><p>אם הגוף לא נכנס במסך אחד — פרקו לפונקציות עזר.</p></div>\n    <div class=\"card violet\"><h3>docstring</h3><p>שורת הסבר ראשונה בגרשיים משולשים: <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">\"\"\"מחזירה ממוצע של רשימה\"\"\"</code></p></div>\n  </div>"
+  },
+  {
+    "type": "code",
+    "eyebrow": "הכול ביחד · 1",
+    "title": "תכנית <span class='accent'>מפורקת</span> לפונקציות",
+    "desc": "כל חלק בתכנית — פונקציה עם תפקיד אחד. קודם מגדירים את כולן:",
+    "code": [
+      {
+        "t": "tok-kw",
+        "c": "def"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "read_grades"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "n"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "grades"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "[]"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "i"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "range"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "n"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-var",
+        "c": "grades"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "append"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-fn",
+        "c": "int"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-fn",
+        "c": "input"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"ציון: \""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")))"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "return"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "grades"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-kw",
+        "c": "def"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "average"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "nums"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "return"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "sum"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "nums"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "/"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "len"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "nums"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-kw",
+        "c": "def"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "count_above"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "nums"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "limit"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "count"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "0"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "x"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "nums"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-kw",
+        "c": "if"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "x"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "&gt;"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "limit"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "            "
+      },
+      {
+        "t": "tok-var",
+        "c": "count"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "+="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "1"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "return"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "count"
+      }
+    ]
+  },
+  {
+    "type": "code",
+    "eyebrow": "הכול ביחד · 2",
+    "title": "הקוד הראשי — <span class='accent'>קצר וקריא</span>",
+    "desc": "עם הפונקציות מהשקף הקודם, התכנית עצמה היא שלוש שורות שנקראות כמו משפט:",
+    "setup": "\ndef read_grades(n):\n    grades = []\n    for i in range(n):\n        grades.append(int(input(\"ציון: \")))\n    return grades\n\ndef average(nums):\n    return sum(nums) / len(nums)\n\ndef count_above(nums, limit):\n    count = 0\n    for x in nums:\n        if x > limit:\n            count += 1\n    return count\n",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "grades"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "read_grades"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-num",
+        "c": "3"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "avg"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "average"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "grades"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"ממוצע:\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "avg"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"מעל הממוצע:\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "count_above"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "grades"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "avg"
+      },
+      {
+        "t": "tok-punc",
+        "c": "))"
+      }
+    ],
+    "outLabel": "הרצה לדוגמה:",
+    "outText": "ציון: 80\nציון: 95\nציון: 65\nממוצע: 80.0\nמעל הממוצע: 1"
+  },
+  {
+    "type": "content",
+    "eyebrow": "טעויות נפוצות",
+    "title": "ארבע מלכודות <span class='accent'>של פונקציות</span>",
+    "body": "\n  <div class=\"grid cols-2\">\n    <div class=\"card coral\"><h3>print במקום return</h3><p>הפונקציה \"עובדת\" על המסך, אבל מחזירה None לקוד.</p></div>\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">say_hello</span></h3><p>בלי סוגריים — אין קריאה. צריך <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">say_hello()</code>.</p></div>\n    <div class=\"card gold\"><h3>קריאה לפני def</h3><p>NameError. מגדירים את כל הפונקציות בראש הקובץ.</p></div>\n    <div class=\"card gold\"><h3>return בתוך הלולאה</h3><p>יוצא בסיבוב הראשון! בדקו את ההזחה של return.</p></div>\n  </div>"
+  },
+  {
+    "type": "exercises",
+    "eyebrow": "תרגול · חלק א׳",
+    "title": "משימות — <span class='accent'>רמה קלה</span>",
+    "desc": "",
+    "items": [
+      {
+        "tag": "easy",
+        "text": "<code>celsius_to_f(c)</code> — מחזירה <code>c * 9 / 5 + 32</code>. הדפיסו טבלת המרה ל-0, 10, …, 40."
+      },
+      {
+        "tag": "easy",
+        "text": "<code>is_adult(age)</code> — מחזירה True מ-18 ומעלה. השתמשו בה בתוך if."
+      },
+      {
+        "tag": "easy",
+        "text": "<code>repeat(text, times=2)</code> — מחזירה את המחרוזת חוזרת times פעמים."
+      },
+      {
+        "tag": "easy",
+        "text": "<code>my_len(lst)</code> — מחזירה את אורך הרשימה בלי <code>len</code>."
+      }
+    ]
+  },
+  {
+    "type": "exercises",
+    "eyebrow": "תרגול · חלק ב׳",
+    "title": "משימות — <span class='accent'>רמה בינונית</span>",
+    "desc": "",
+    "items": [
+      {
+        "tag": "med",
+        "text": "<code>my_max(lst)</code> ו-<code>my_min(lst)</code> — בלי הפונקציות המובנות. ואז <code>range_of(lst)</code> שמחזירה את ההפרש ביניהם בעזרתן."
+      },
+      {
+        "tag": "med",
+        "text": "<code>count(lst, x)</code> — כמה פעמים x מופיע ברשימה."
+      },
+      {
+        "tag": "med",
+        "text": "<code>bubble_sort(lst)</code> — ארזו את מיון הבועות מיחידה 10 בפונקציה. בדקו על 3 רשימות."
+      },
+      {
+        "tag": "med",
+        "text": "<code>is_palindrome(word)</code> — True אם המילה זהה מימין ומשמאל (\"abba\", \"racecar\")."
+      }
+    ]
+  },
+  {
+    "type": "exercises",
+    "eyebrow": "תרגול · חלק ג׳",
+    "title": "משימות — <span class='accent'>רמה מאתגרת</span>",
+    "desc": "",
+    "items": [
+      {
+        "tag": "hard",
+        "text": "מחשבון: <code>calc(a, op, b)</code> מחזירה את התוצאה עבור + − * /. בחלוקה ב-0 מחזירה None. כתבו לולאה שקולטת תרגילים עד שמוקלד \"q\"."
+      },
+      {
+        "tag": "hard",
+        "text": "<code>digit_sum(n)</code> מחזירה את סכום הספרות. <code>digital_root(n)</code> קוראת לה שוב ושוב עד שנשארת ספרה אחת (9875 → 29 → 11 → 2)."
+      },
+      {
+        "tag": "hard",
+        "text": "<code>merge_sorted(a, b)</code> — מחזירה רשימה ממוינת אחת משתי רשימות ממוינות, בלי sort."
+      },
+      {
+        "tag": "hard",
+        "text": "מה מדפיסה התכנית? <code style=\"display:block;margin-top:6px;white-space:pre\">def f(x):\n    x = x + 1\n    return x\nx = 5\nf(x)\nprint(x)\nx = f(x)\nprint(x)</code>"
+      }
+    ]
+  },
+  {
+    "type": "exercises",
+    "eyebrow": "בדיקה עצמית",
+    "title": "שאלות <span class='accent'>חזרה</span> מהירות",
+    "desc": "בלי לגלול אחורה — כמה מהן אתם זוכרים?",
+    "items": [
+      {
+        "tag": "easy",
+        "text": "מה ההבדל בין הגדרת פונקציה לקריאה לה?"
+      },
+      {
+        "tag": "easy",
+        "text": "מה ההבדל בין פרמטר לארגומנט?"
+      },
+      {
+        "tag": "med",
+        "text": "מה מחזירה פונקציה שאין בה return?"
+      },
+      {
+        "tag": "med",
+        "text": "מה ההבדל בין <code>return x</code> ל-<code>print(x)</code> בתוך פונקציה?"
+      },
+      {
+        "tag": "med",
+        "text": "משתנה שנוצר בתוך פונקציה — אפשר להשתמש בו אחריה?"
+      },
+      {
+        "tag": "hard",
+        "text": "למה פונקציה יכולה לשנות רשימה שהועברה אליה, אבל לא מספר?"
+      }
+    ]
+  },
+  {
+    "type": "content",
+    "eyebrow": "לפני שסוגרים",
+    "title": "שישה דברים <span class='accent'>לזכור</span> מהיום",
+    "body": "\n  <div class=\"grid cols-3\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">def name(p):</span></h3><p>הגדרה — לא מריצה כלום עד שקוראים</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">name(arg)</span></h3><p>קריאה — הארגומנט מוצב בפרמטר</p></div>\n    <div class=\"card green\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">return value</span></h3><p>מחזיר תשובה לקוד ויוצא מיד</p></div>\n    <div class=\"card coral\"><h3>print ≠ return</h3><p>print למשתמש, return לקוד. בלי return → None</p></div>\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">def f(x, n=2):</span></h3><p>ערך ברירת מחדל לפרמטר</p></div>\n    <div class=\"card blue\"><h3>scope</h3><p>משתנה מקומי חי רק בתוך הפונקציה</p></div>\n  </div>"
+  },
+  {
+    "type": "title",
+    "kicker": "סיכום יחידה 11",
+    "title": "כותבים <span class=\"py-mark\">פעם אחת</span>, קוראים <span class=\"py-mark2\">תמיד</span>",
+    "sub": "בשיעור הבא: Tuple — רשימה שאי אפשר לשנות, ואיך פונקציה מחזירה כמה ערכים בבת אחת.",
+    "prompt": ">>> point = (3, 4) <span class=\"caret\"></span>"
+  }
+];
+
+
+/* ============================================================
+   RENDER ENGINE — shared across all decks in this course.
+   Reads the SLIDES data array above and builds the DOM.
+   ============================================================ */
+function esc(s){ return String(s); } // content is authored HTML on purpose (icons, spans)
+
+function renderCode(tokens){
+  return tokens.map(tk => tk.t ? `<span class="${tk.t}">${tk.c}</span>` : tk.c).join("");
+}
+
+function buildSlide(s, i){
+  const el = document.createElement("section");
+  el.className = "slide";
+  el.dataset.index = i;
+
+  if(s.type === "title"){
+    el.classList.add("title-slide");
+    el.innerHTML = `
+      <div class="kicker">${s.kicker}</div>
+      <h1>${s.title}</h1>
+      <p>${s.sub}</p>
+      <div class="prompt-line">${s.prompt}</div>
+    `;
+  } else if(s.type === "content"){
+    el.innerHTML = `
+      <div class="eyebrow"><span class="dot"></span>${s.eyebrow}</div>
+      <h1 class="slide-title">${s.title}</h1>
+      ${s.body}
+    `;
+  } else if(s.type === "code"){
+    el.innerHTML = `
+      <div class="eyebrow"><span class="dot"></span>${s.eyebrow}</div>
+      <h1 class="slide-title">${s.title}</h1>
+      ${s.desc ? `<p class="body-text" style="margin-bottom:16px">${s.desc}</p>` : ""}
+      <div class="codewrap">
+        <div class="chead"><b>&gt;_</b> example.py</div>
+        <pre class="code">${renderCode(s.code)}</pre>
+      </div>
+      ${s.outText ? `
+      <div class="outwrap" style="margin-top:14px">
+        <div class="ohead">${s.outLabel || "פלט:"}</div>
+        <div class="obody">${s.outText}</div>
+      </div>` : ""}
+    `;
+  } else if(s.type === "exercises"){
+    el.innerHTML = `
+      <div class="eyebrow"><span class="dot"></span>${s.eyebrow}</div>
+      <h1 class="slide-title">${s.title}</h1>
+      ${s.desc ? `<p class="body-text" style="margin-bottom:6px">${s.desc}</p>` : ""}
+      <ul class="exlist">
+        ${s.items.map((it, idx) => `
+          <li>
+            <span class="tag ${it.tag}">${it.tag === "easy" ? "קל" : it.tag === "med" ? "בינוני" : "מאתגר"}</span>
+            <span class="exbody">${it.text}</span>
+            <span class="exnum">${idx+1}</span>
+          </li>
+        `).join("")}
+      </ul>
+    `;
+  }
+  return el;
+}
+
+(function initDeck(){
+  const viewport = document.getElementById("viewport");
+  const dotsNav = document.getElementById("dotsNav");
+  const fill = document.getElementById("progressFill");
+  const pgCur = document.getElementById("pg-cur");
+  const pgTotal = document.getElementById("pg-total");
+  const tbName = document.getElementById("tb-name");
+  if(tbName) tbName.textContent = (typeof FILE_NAME !== "undefined" ? FILE_NAME : "deck.py");
+
+  let cur = 0;
+  const n = SLIDES.length;
+  pgTotal.textContent = n;
+
+  SLIDES.forEach((s, i) => {
+    viewport.appendChild(buildSlide(s, i));
+    const dot = document.createElement("button");
+    dot.setAttribute("aria-label", "שקופית " + (i+1));
+    dot.addEventListener("click", () => go(i));
+    dotsNav.appendChild(dot);
+  });
+  const slideEls = Array.from(viewport.children);
+  const dotEls = Array.from(dotsNav.children);
+
+  function go(i){
+    cur = Math.max(0, Math.min(n-1, i));
+    slideEls.forEach((el, idx) => el.classList.toggle("active", idx === cur));
+    dotEls.forEach((el, idx) => el.classList.toggle("on", idx === cur));
+    fill.style.width = (n <= 1 ? 100 : (cur/(n-1))*100) + "%";
+    pgCur.textContent = cur + 1;
+  }
+  go(0);
+
+  document.getElementById("btnNext").addEventListener("click", () => go(cur+1));
+  document.getElementById("btnPrev").addEventListener("click", () => go(cur-1));
+  document.getElementById("btnFs").addEventListener("click", () => {
+    if(!document.fullscreenElement){ document.documentElement.requestFullscreen().catch(()=>{}); }
+    else { document.exitFullscreen().catch(()=>{}); }
+  });
+
+  window.addEventListener("keydown", (e) => {
+    if(["ArrowRight","PageDown"," ","Spacebar"].includes(e.key)){ go(cur+1); e.preventDefault(); }
+    else if(["ArrowLeft","PageUp"].includes(e.key)){ go(cur-1); e.preventDefault(); }
+    else if(e.key === "Home"){ go(0); e.preventDefault(); }
+    else if(e.key === "End"){ go(n-1); e.preventDefault(); }
+    else if(e.key === "f" || e.key === "F"){ document.getElementById("btnFs").click(); }
+  });
+
+  let touchX = null;
+  viewport.addEventListener("touchstart", (e) => { touchX = e.touches[0].clientX; }, {passive:true});
+  viewport.addEventListener("touchend", (e) => {
+    if(touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if(Math.abs(dx) > 50){ go(dx < 0 ? cur+1 : cur-1); }
+    touchX = null;
+  }, {passive:true});
+})();
+
+function fitTallSlides(){
+  const SAFE = 44;   // keep clear of the nav dots / buttons at the bottom
+  document.querySelectorAll('.slide').forEach(sl => {
+    if (!sl.clientHeight) return;
+    const over = () => {   // does the content end below the safe area?
+      const top = sl.getBoundingClientRect().top;
+      const bottom = Math.max(...[...sl.children].map(c => c.getBoundingClientRect().bottom));
+      return bottom - top > sl.clientHeight - SAFE;
+    };
+    const code = sl.querySelector('.codewrap'), out = sl.querySelector('.outwrap');
+    if (!over()) return;
+    if (!code) {           // text slides: zoom the content out a little
+      let z = 1;
+      while (over() && z > 0.8) { z -= 0.02; [...sl.children].forEach(c => c.style.zoom = z); }
+      return;
+    }
+    if (out) {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:grid;grid-template-columns:1.45fr 1fr;gap:16px;align-items:start;direction:ltr';
+      code.before(row); row.append(code, out); out.style.marginTop = '0';
+    }
+    const els = sl.querySelectorAll('pre.code, .obody');
+    let fs = 14.5;
+    while (over() && fs > 10.5) { fs -= 0.5; els.forEach(e => { e.style.fontSize = fs + 'px'; e.style.lineHeight = '1.55'; }); }
+  });
+}
+window.addEventListener('load', () => (document.fonts ? document.fonts.ready : Promise.resolve()).then(fitTallSlides));
+</script>

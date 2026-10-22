@@ -319,6 +319,8 @@ table.trace td.t{ color:var(--green); } table.trace td.f{ color:var(--coral); }
 table.trace td.o{ color:var(--gold); }
 table.trace.ltr{ direction:ltr; }
 table.trace td.bits{ letter-spacing:.35em; }
+
+pre.code .tok-str, pre.code .tok-com{ unicode-bidi:isolate; }
 </style>
 
 <div class="stage">
@@ -422,13 +424,13 @@ const SLIDES = [
     "type": "content",
     "eyebrow": "תזכורת מהיחידה הקודמת",
     "title": "מה <span class='accent'>למדנו</span> ביחידה 7?",
-    "body": "\n  <ul class=\"plain\">\n    <li><strong class=\"hl\">while</strong> חוזרת כל עוד תנאי מתקיים — אתחול, תנאי, עדכון</li>\n    <li><strong class=\"hl\">for</strong> עם <strong class=\"hl2\">range()</strong> חוזרת מספר ידוע של פעמים, וגם על כל תו במחרוזת</li>\n    <li>תבנית ה<strong class=\"hl2\">צובר</strong>: <code style=\"font-family:var(--font-mono)\">total += i</code>, והאתחול תמיד לפני הלולאה</li>\n    <li><code style=\"font-family:var(--font-mono)\">break</code> יוצא מהלולאה, <code style=\"font-family:var(--font-mono)\">continue</code> מדלג לסיבוב הבא</li>\n    <li>טבלת מעקב — הכלי להבין מה קורה בכל סיבוב</li>\n  </ul>\n  <div class=\"callout tip\" style=\"margin-top:22px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>ביחידה 7 כבר הצצנו ב-<code style=\"font-family:var(--font-mono)\">or</code> בתוך תנאי של while. היום נבין אותו — ואת שני החברים שלו — לעומק.</p>\n  </div>"
+    "body": "\n  <ul class=\"plain\">\n    <li><strong class=\"hl\">while</strong> חוזרת כל עוד תנאי מתקיים — אתחול, תנאי, עדכון</li>\n    <li><strong class=\"hl\">for</strong> עם <strong class=\"hl2\">range()</strong> חוזרת מספר ידוע של פעמים, וגם על כל תו במחרוזת</li>\n    <li>תבנית ה<strong class=\"hl2\">צובר</strong>: <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">total += i</code>, והאתחול תמיד לפני הלולאה</li>\n    <li><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">break</code> יוצא מהלולאה, <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">continue</code> מדלג לסיבוב הבא</li>\n    <li>טבלת מעקב — הכלי להבין מה קורה בכל סיבוב</li>\n  </ul>\n  <div class=\"callout tip\" style=\"margin-top:22px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>ביחידה 7 כבר הצצנו ב-<code dir=\"ltr\" style=\"font-family:var(--font-mono)\">or</code> בתוך תנאי של while. היום נבין אותו — ואת שני החברים שלו — לעומק.</p>\n  </div>"
   },
   {
     "type": "content",
     "eyebrow": "מטרות השיעור",
     "title": "מה <span class='accent'>נלמד</span> היום?",
-    "body": "\n  <ul class=\"plain\">\n    <li>האופרטורים הלוגיים <strong class=\"hl\">and</strong>, <strong class=\"hl\">or</strong>, <strong class=\"hl\">not</strong> — וטבלאות האמת שלהם</li>\n    <li>סדר קדימויות בין אופרטורים לוגיים, וסוגריים</li>\n    <li>איך מספר נשמר במחשב — <strong class=\"hl2\">ביטים</strong> וייצוג בינארי</li>\n    <li>האופרטורים הסיביים <code style=\"font-family:var(--font-mono)\">&amp; | ^ ~ &lt;&lt; &gt;&gt;</code></li>\n    <li><strong class=\"hl2\">ההבדל</strong> בין ביטוי לוגי לביטוי סיבי — ולמה מבלבלים ביניהם</li>\n    <li>איך בודקים, מדליקים ומכבים <strong class=\"hl\">ביט בודד</strong> במספר</li>\n  </ul>"
+    "body": "\n  <ul class=\"plain\">\n    <li>האופרטורים הלוגיים <strong class=\"hl\">and</strong>, <strong class=\"hl\">or</strong>, <strong class=\"hl\">not</strong> — וטבלאות האמת שלהם</li>\n    <li>סדר קדימויות בין אופרטורים לוגיים, וסוגריים</li>\n    <li>איך מספר נשמר במחשב — <strong class=\"hl2\">ביטים</strong> וייצוג בינארי</li>\n    <li>האופרטורים הסיביים <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">&amp; | ^ ~ &lt;&lt; &gt;&gt;</code></li>\n    <li><strong class=\"hl2\">ההבדל</strong> בין ביטוי לוגי לביטוי סיבי — ולמה מבלבלים ביניהם</li>\n    <li>איך בודקים, מדליקים ומכבים <strong class=\"hl\">ביט בודד</strong> במספר</li>\n  </ul>"
   },
   {
     "type": "code",
@@ -576,7 +578,7 @@ const SLIDES = [
     "type": "content",
     "eyebrow": "הרעיון",
     "title": "שני תנאים — <span class='accent'>שאלה אחת</span>",
-    "body": "\n  <p class=\"body-text\">מה שבאמת רצינו לשאול הוא שאלה אחת: \"האם הגיל מתאים <strong class=\"hl2\">וגם</strong> יש תעודה?\". בשפה טבעית מחברים תנאים במילים כמו <strong class=\"hl\">וגם</strong>, <strong class=\"hl\">או</strong>, <strong class=\"hl\">לא</strong> — ובפייתון יש בדיוק שלוש מילים כאלה.</p>\n  <div class=\"grid cols-3\" style=\"margin-top:14px\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\">and</h3><p>וגם — True רק אם <strong>שני</strong> הצדדים True</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\">or</h3><p>או — True אם <strong>לפחות אחד</strong> מהצדדים True</p></div>\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\">not</h3><p>לא — הופך True ל-False ולהפך</p></div>\n  </div>\n  <p class=\"body-text\" style=\"margin-top:14px\">שלושתם מקבלים ערכים בוליאניים ומחזירים ערך בוליאני. לכן קוראים להם <strong class=\"hl2\">אופרטורים לוגיים</strong>.</p>"
+    "body": "\n  <p class=\"body-text\">מה שבאמת רצינו לשאול הוא שאלה אחת: \"האם הגיל מתאים <strong class=\"hl2\">וגם</strong> יש תעודה?\". בשפה טבעית מחברים תנאים במילים כמו <strong class=\"hl\">וגם</strong>, <strong class=\"hl\">או</strong>, <strong class=\"hl\">לא</strong> — ובפייתון יש בדיוק שלוש מילים כאלה.</p>\n  <div class=\"grid cols-3\" style=\"margin-top:14px\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">and</span></h3><p>וגם — True רק אם <strong>שני</strong> הצדדים True</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">or</span></h3><p>או — True אם <strong>לפחות אחד</strong> מהצדדים True</p></div>\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">not</span></h3><p>לא — הופך True ל-False ולהפך</p></div>\n  </div>\n  <p class=\"body-text\" style=\"margin-top:14px\">שלושתם מקבלים ערכים בוליאניים ומחזירים ערך בוליאני. לכן קוראים להם <strong class=\"hl2\">אופרטורים לוגיים</strong>.</p>"
   },
   {
     "type": "code",
@@ -752,7 +754,7 @@ const SLIDES = [
     "type": "content",
     "eyebrow": "טבלת אמת",
     "title": "<span class='accent'>and</span> — וגם",
-    "body": "\n  <p class=\"body-text\">טבלת אמת מראה את התוצאה עבור <strong class=\"hl2\">כל</strong> צירוף אפשרי של הקלטים. ל-<code style=\"font-family:var(--font-mono)\">and</code> יש רק שורה אחת ירוקה:</p>\n  <table class=\"trace ltr\">\n    <tr><th>A</th><th>B</th><th>A and B</th></tr>\n    <tr><td class=\"t\">True</td><td class=\"t\">True</td><td class=\"t\">True</td></tr>\n    <tr><td class=\"t\">True</td><td class=\"f\">False</td><td class=\"f\">False</td></tr>\n    <tr><td class=\"f\">False</td><td class=\"t\">True</td><td class=\"f\">False</td></tr>\n    <tr><td class=\"f\">False</td><td class=\"f\">False</td><td class=\"f\">False</td></tr>\n  </table>\n  <div class=\"callout tip\" style=\"margin-top:14px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>דרך לזכור: <code style=\"font-family:var(--font-mono)\">and</code> הוא \"קמצן\" — מספיק False אחד כדי לקלקל הכול.</p>\n  </div>"
+    "body": "\n  <p class=\"body-text\">טבלת אמת מראה את התוצאה עבור <strong class=\"hl2\">כל</strong> צירוף אפשרי של הקלטים. ל-<code dir=\"ltr\" style=\"font-family:var(--font-mono)\">and</code> יש רק שורה אחת ירוקה:</p>\n  <table class=\"trace ltr\">\n    <tr><th>A</th><th>B</th><th>A and B</th></tr>\n    <tr><td class=\"t\">True</td><td class=\"t\">True</td><td class=\"t\">True</td></tr>\n    <tr><td class=\"t\">True</td><td class=\"f\">False</td><td class=\"f\">False</td></tr>\n    <tr><td class=\"f\">False</td><td class=\"t\">True</td><td class=\"f\">False</td></tr>\n    <tr><td class=\"f\">False</td><td class=\"f\">False</td><td class=\"f\">False</td></tr>\n  </table>\n  <div class=\"callout tip\" style=\"margin-top:14px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>דרך לזכור: <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">and</code> הוא \"קמצן\" — מספיק False אחד כדי לקלקל הכול.</p>\n  </div>"
   },
   {
     "type": "code",
@@ -932,7 +934,7 @@ const SLIDES = [
     "type": "content",
     "eyebrow": "טבלת אמת",
     "title": "<span class='accent'>or</span> — או",
-    "body": "\n  <p class=\"body-text\">ל-<code style=\"font-family:var(--font-mono)\">or</code> יש רק שורה אחת אדומה — כששני הצדדים False:</p>\n  <table class=\"trace ltr\">\n    <tr><th>A</th><th>B</th><th>A or B</th></tr>\n    <tr><td class=\"t\">True</td><td class=\"t\">True</td><td class=\"t\">True</td></tr>\n    <tr><td class=\"t\">True</td><td class=\"f\">False</td><td class=\"t\">True</td></tr>\n    <tr><td class=\"f\">False</td><td class=\"t\">True</td><td class=\"t\">True</td></tr>\n    <tr><td class=\"f\">False</td><td class=\"f\">False</td><td class=\"f\">False</td></tr>\n  </table>\n  <div class=\"callout warn\" style=\"margin-top:14px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-warn\"/></svg>\n    <p>שימו לב: <code style=\"font-family:var(--font-mono)\">or</code> בפייתון הוא \"או\" <strong>כולל</strong> — אם שני הצדדים True, התוצאה True. זה לא \"או זה או זה, אבל לא שניהם\".</p>\n  </div>"
+    "body": "\n  <p class=\"body-text\">ל-<code dir=\"ltr\" style=\"font-family:var(--font-mono)\">or</code> יש רק שורה אחת אדומה — כששני הצדדים False:</p>\n  <table class=\"trace ltr\">\n    <tr><th>A</th><th>B</th><th>A or B</th></tr>\n    <tr><td class=\"t\">True</td><td class=\"t\">True</td><td class=\"t\">True</td></tr>\n    <tr><td class=\"t\">True</td><td class=\"f\">False</td><td class=\"t\">True</td></tr>\n    <tr><td class=\"f\">False</td><td class=\"t\">True</td><td class=\"t\">True</td></tr>\n    <tr><td class=\"f\">False</td><td class=\"f\">False</td><td class=\"f\">False</td></tr>\n  </table>\n  <div class=\"callout warn\" style=\"margin-top:14px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-warn\"/></svg>\n    <p>שימו לב: <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">or</code> בפייתון הוא \"או\" <strong>כולל</strong> — אם שני הצדדים True, התוצאה True. זה לא \"או זה או זה, אבל לא שניהם\".</p>\n  </div>"
   },
   {
     "type": "code",
@@ -1100,7 +1102,7 @@ const SLIDES = [
     "type": "content",
     "eyebrow": "טבלת אמת",
     "title": "<span class='accent'>not</span> — לא",
-    "body": "\n  <table class=\"trace ltr\">\n    <tr><th>A</th><th>not A</th></tr>\n    <tr><td class=\"t\">True</td><td class=\"f\">False</td></tr>\n    <tr><td class=\"f\">False</td><td class=\"t\">True</td></tr>\n  </table>\n  <div class=\"callout tip\" style=\"margin-top:18px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p><code style=\"font-family:var(--font-mono)\">not</code> עובד על ערך <strong>אחד</strong> (אופרטור אונרי), בניגוד ל-<code style=\"font-family:var(--font-mono)\">and</code> ו-<code style=\"font-family:var(--font-mono)\">or</code> שעובדים על שניים. לרוב עדיף לכתוב <code style=\"font-family:var(--font-mono)\">x != 5</code> מאשר <code style=\"font-family:var(--font-mono)\">not x == 5</code> — קריא יותר.</p>\n  </div>"
+    "body": "\n  <table class=\"trace ltr\">\n    <tr><th>A</th><th>not A</th></tr>\n    <tr><td class=\"t\">True</td><td class=\"f\">False</td></tr>\n    <tr><td class=\"f\">False</td><td class=\"t\">True</td></tr>\n  </table>\n  <div class=\"callout tip\" style=\"margin-top:18px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">not</code> עובד על ערך <strong>אחד</strong> (אופרטור אונרי), בניגוד ל-<code dir=\"ltr\" style=\"font-family:var(--font-mono)\">and</code> ו-<code dir=\"ltr\" style=\"font-family:var(--font-mono)\">or</code> שעובדים על שניים. לרוב עדיף לכתוב <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">x != 5</code> מאשר <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">not x == 5</code> — קריא יותר.</p>\n  </div>"
   },
   {
     "type": "exercises",
@@ -1130,7 +1132,7 @@ const SLIDES = [
     "type": "content",
     "eyebrow": "מלכודת קלאסית",
     "title": "<span class='accent' dir='ltr'>x == 1 or 2</span> — לא מה שחשבתם",
-    "body": "\n  <p class=\"body-text\">מתחילים כותבים לפעמים <code style=\"font-family:var(--font-mono)\">if x == 1 or 2:</code> מתוך כוונה \"אם x הוא 1 או 2\". אבל פייתון קוראת את זה כ-<code style=\"font-family:var(--font-mono)\">(x == 1) or (2)</code> — והמספר 2 נחשב \"אמת\", ולכן התנאי <strong class=\"hl2\">תמיד</strong> מתקיים.</p>\n  <div class=\"grid cols-2\" style=\"margin-top:14px\">\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\">x == 1 or 2</h3><p>❌ תמיד True — ה-2 לבד הוא ביטוי \"אמיתי\"</p></div>\n    <div class=\"card green\"><h3 style=\"font-family:var(--font-mono)\">x == 1 or x == 2</h3><p>✅ כל צד הוא השוואה שלמה בפני עצמה</p></div>\n  </div>\n  <div class=\"callout warn\" style=\"margin-top:16px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-warn\"/></svg>\n    <p>כלל: משני צידי <code style=\"font-family:var(--font-mono)\">and</code> / <code style=\"font-family:var(--font-mono)\">or</code> חייב לעמוד <strong>ביטוי בוליאני שלם</strong>. אי אפשר \"לקצר\" ולהשמיט את המשתנה בצד השני.</p>\n  </div>"
+    "body": "\n  <p class=\"body-text\">מתחילים כותבים לפעמים <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">if x == 1 or 2:</code> מתוך כוונה \"אם x הוא 1 או 2\". אבל פייתון קוראת את זה כ-<code dir=\"ltr\" style=\"font-family:var(--font-mono)\">(x == 1) or (2)</code> — והמספר 2 נחשב \"אמת\", ולכן התנאי <strong class=\"hl2\">תמיד</strong> מתקיים.</p>\n  <div class=\"grid cols-2\" style=\"margin-top:14px\">\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">x == 1 or 2</span></h3><p>❌ תמיד True — ה-2 לבד הוא ביטוי \"אמיתי\"</p></div>\n    <div class=\"card green\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">x == 1 or x == 2</span></h3><p>✅ כל צד הוא השוואה שלמה בפני עצמה</p></div>\n  </div>\n  <div class=\"callout warn\" style=\"margin-top:16px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-warn\"/></svg>\n    <p>כלל: משני צידי <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">and</code> / <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">or</code> חייב לעמוד <strong>ביטוי בוליאני שלם</strong>. אי אפשר \"לקצר\" ולהשמיט את המשתנה בצד השני.</p>\n  </div>"
   },
   {
     "type": "code",
@@ -1310,7 +1312,7 @@ const SLIDES = [
     "type": "content",
     "eyebrow": "סדר קדימויות",
     "title": "מי <span class='accent'>מחושב קודם</span>?",
-    "body": "\n  <p class=\"body-text\">בדיוק כמו שכפל קודם לחיבור (יחידה 3), גם לאופרטורים הלוגיים יש סדר:</p>\n  <div class=\"grid cols-3\">\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\">1. not</h3><p>הכי חזק — מחושב ראשון</p></div>\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\">2. and</h3><p>אחריו</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\">3. or</h3><p>הכי חלש — מחושב אחרון</p></div>\n  </div>\n  <p class=\"body-text\" style=\"margin-top:16px\">וכל ההשוואות (<code style=\"font-family:var(--font-mono)\">== &lt; &gt;</code> וכו') מחושבות <strong class=\"hl2\">לפני</strong> שלושתם. לכן <code style=\"font-family:var(--font-mono)\">a &gt; 1 and b &lt; 2</code> עובד בלי סוגריים.</p>\n  <div class=\"callout tip\" style=\"margin-top:12px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>לא בטוחים? <strong>שימו סוגריים</strong>. סוגריים מיותרים לא מזיקים — ותנאי שקוראים נכון שווה יותר מתנאי קצר.</p>\n  </div>"
+    "body": "\n  <p class=\"body-text\">בדיוק כמו שכפל קודם לחיבור (יחידה 3), גם לאופרטורים הלוגיים יש סדר:</p>\n  <div class=\"grid cols-3\">\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">1. not</span></h3><p>הכי חזק — מחושב ראשון</p></div>\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">2. and</span></h3><p>אחריו</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">3. or</span></h3><p>הכי חלש — מחושב אחרון</p></div>\n  </div>\n  <p class=\"body-text\" style=\"margin-top:16px\">וכל ההשוואות (<code dir=\"ltr\" style=\"font-family:var(--font-mono)\">== &lt; &gt;</code> וכו') מחושבות <strong class=\"hl2\">לפני</strong> שלושתם. לכן <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">a &gt; 1 and b &lt; 2</code> עובד בלי סוגריים.</p>\n  <div class=\"callout tip\" style=\"margin-top:12px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>לא בטוחים? <strong>שימו סוגריים</strong>. סוגריים מיותרים לא מזיקים — ותנאי שקוראים נכון שווה יותר מתנאי קצר.</p>\n  </div>"
   },
   {
     "type": "code",
@@ -1722,7 +1724,7 @@ const SLIDES = [
     "type": "content",
     "eyebrow": "סגנון",
     "title": "בוליאני בתנאי — <span class='accent'>בלי == True</span>",
-    "body": "\n  <p class=\"body-text\">אם משתנה כבר בוליאני, אין צורך להשוות אותו ל-True. התנאי עצמו הוא הערך:</p>\n  <div class=\"grid cols-2\">\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\">if has_id == True:</h3><p>עובד, אבל מיותר ומסורבל</p></div>\n    <div class=\"card green\"><h3 style=\"font-family:var(--font-mono)\">if has_id:</h3><p>קריא: \"אם יש תעודה\"</p></div>\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\">if has_id == False:</h3><p>אותו סיפור</p></div>\n    <div class=\"card green\"><h3 style=\"font-family:var(--font-mono)\">if not has_id:</h3><p>קריא: \"אם אין תעודה\"</p></div>\n  </div>\n  <div class=\"callout tip\" style=\"margin-top:14px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>גם שמות טובים עוזרים (יחידה 4): <code style=\"font-family:var(--font-mono)\">is_valid</code>, <code style=\"font-family:var(--font-mono)\">has_id</code>, <code style=\"font-family:var(--font-mono)\">is_raining</code> — שם שנקרא כמו שאלה של כן/לא.</p>\n  </div>"
+    "body": "\n  <p class=\"body-text\">אם משתנה כבר בוליאני, אין צורך להשוות אותו ל-True. התנאי עצמו הוא הערך:</p>\n  <div class=\"grid cols-2\">\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">if has_id == True:</span></h3><p>עובד, אבל מיותר ומסורבל</p></div>\n    <div class=\"card green\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">if has_id:</span></h3><p>קריא: \"אם יש תעודה\"</p></div>\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">if has_id == False:</span></h3><p>אותו סיפור</p></div>\n    <div class=\"card green\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">if not has_id:</span></h3><p>קריא: \"אם אין תעודה\"</p></div>\n  </div>\n  <div class=\"callout tip\" style=\"margin-top:14px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>גם שמות טובים עוזרים (יחידה 4): <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">is_valid</code>, <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">has_id</code>, <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">is_raining</code> — שם שנקרא כמו שאלה של כן/לא.</p>\n  </div>"
   },
   {
     "type": "exercises",
@@ -1762,7 +1764,7 @@ const SLIDES = [
     "type": "code",
     "eyebrow": "כלי עזר",
     "title": "<span class='accent'>bin()</span> — לראות את הביטים",
-    "desc": "הפונקציה bin() מחזירה מחרוזת עם הייצוג הבינארי (התחילית 0b מסמנת \"בינארי\"). ובכיוון ההפוך — כותבים מספר בינארי ישירות בקוד:",
+    "desc": "הפונקציה <bdi dir=\"ltr\">bin()</bdi> מחזירה מחרוזת עם הייצוג הבינארי (התחילית 0b מסמנת \"בינארי\"). ובכיוון ההפוך — כותבים מספר בינארי ישירות בקוד:",
     "code": [
       {
         "t": "tok-fn",
@@ -1908,7 +1910,7 @@ const SLIDES = [
     "type": "content",
     "eyebrow": "נושא חדש",
     "title": "אופרטורים <span class='accent'>סיביים</span> (bitwise)",
-    "body": "\n  <p class=\"body-text\">אופרטור סיבי עובד <strong class=\"hl2\">על כל ביט בנפרד</strong> — ביט 0 של המספר הראשון מול ביט 0 של השני, ביט 1 מול ביט 1, וכן הלאה. התוצאה היא מספר שלם חדש.</p>\n  <div class=\"grid cols-3\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\">&amp;</h3><p><strong>AND סיבי</strong> — 1 רק אם שני הביטים 1</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\">|</h3><p><strong>OR סיבי</strong> — 1 אם לפחות אחד מהביטים 1</p></div>\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\">^</h3><p><strong>XOR</strong> — 1 אם הביטים <strong>שונים</strong></p></div>\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\">~</h3><p><strong>NOT סיבי</strong> — הופך כל ביט</p></div>\n    <div class=\"card green\"><h3 style=\"font-family:var(--font-mono)\">&lt;&lt;</h3><p><strong>הזזה שמאלה</strong> — כל הביטים זזים שמאלה</p></div>\n    <div class=\"card green\"><h3 style=\"font-family:var(--font-mono)\">&gt;&gt;</h3><p><strong>הזזה ימינה</strong> — כל הביטים זזים ימינה</p></div>\n  </div>"
+    "body": "\n  <p class=\"body-text\">אופרטור סיבי עובד <strong class=\"hl2\">על כל ביט בנפרד</strong> — ביט 0 של המספר הראשון מול ביט 0 של השני, ביט 1 מול ביט 1, וכן הלאה. התוצאה היא מספר שלם חדש.</p>\n  <div class=\"grid cols-3\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">&amp;</span></h3><p><strong>AND סיבי</strong> — 1 רק אם שני הביטים 1</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">|</span></h3><p><strong>OR סיבי</strong> — 1 אם לפחות אחד מהביטים 1</p></div>\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">^</span></h3><p><strong>XOR</strong> — 1 אם הביטים <strong>שונים</strong></p></div>\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">~</span></h3><p><strong>NOT סיבי</strong> — הופך כל ביט</p></div>\n    <div class=\"card green\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">&lt;&lt;</span></h3><p><strong>הזזה שמאלה</strong> — כל הביטים זזים שמאלה</p></div>\n    <div class=\"card green\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">&gt;&gt;</span></h3><p><strong>הזזה ימינה</strong> — כל הביטים זזים ימינה</p></div>\n  </div>"
   },
   {
     "type": "code",
@@ -2344,13 +2346,13 @@ const SLIDES = [
     "type": "content",
     "eyebrow": "שימו לב",
     "title": "<span class='accent'>~</span> — לא מה שמצפים",
-    "body": "\n  <p class=\"body-text\"><code style=\"font-family:var(--font-mono)\">~x</code> הופך <strong class=\"hl2\">את כל הביטים</strong>, כולל ביט הסימן — ולכן התוצאה של מספר חיובי היא מספר שלילי. הכלל הפשוט: <strong class=\"hl\">~x = -x - 1</strong>.</p>\n  <div class=\"grid cols-3\" style=\"margin-top:14px\">\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\">~5</h3><p>= -6</p></div>\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\">~0</h3><p>= -1</p></div>\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\">~-1</h3><p>= 0</p></div>\n  </div>\n  <div class=\"callout tip\" style=\"margin-top:14px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>בפועל <code style=\"font-family:var(--font-mono)\">~</code> כמעט תמיד מופיע בשילוב עם <code style=\"font-family:var(--font-mono)\">&amp;</code> כדי <strong>לכבות</strong> ביט — נראה את זה עוד מעט.</p>\n  </div>"
+    "body": "\n  <p class=\"body-text\"><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">~x</code> הופך <strong class=\"hl2\">את כל הביטים</strong>, כולל ביט הסימן — ולכן התוצאה של מספר חיובי היא מספר שלילי. הכלל הפשוט: <strong class=\"hl\">~x = -x - 1</strong>.</p>\n  <div class=\"grid cols-3\" style=\"margin-top:14px\">\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">~5</span></h3><p>= -6</p></div>\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">~0</span></h3><p>= -1</p></div>\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">~-1</span></h3><p>= 0</p></div>\n  </div>\n  <div class=\"callout tip\" style=\"margin-top:14px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>בפועל <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">~</code> כמעט תמיד מופיע בשילוב עם <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">&amp;</code> כדי <strong>לכבות</strong> ביט — נראה את זה עוד מעט.</p>\n  </div>"
   },
   {
     "type": "content",
     "eyebrow": "הנקודה המרכזית",
     "title": "לוגי מול סיבי — <span class='accent'>ההבדל</span>",
-    "body": "\n  <div class=\"grid cols-2\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\">and · or · not</h3><p><strong>לוגיים</strong> — עובדים על ערכי אמת שלמים (True / False). מחזירים תשובה אחת: האם התנאי כולו מתקיים. משמשים ב-if וב-while.</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\">&amp; · | · ^ · ~</h3><p><strong>סיביים</strong> — עובדים על מספרים שלמים, ביט מול ביט. מחזירים מספר שלם חדש. משמשים לחישובים ברמת הביט.</p></div>\n  </div>\n  <table class=\"trace ltr\" style=\"margin-top:16px\">\n    <tr><th>ביטוי</th><th>סוג</th><th>תוצאה</th><th>למה</th></tr>\n    <tr><td>5 &gt; 3 and 2 &gt; 1</td><td>לוגי</td><td class=\"t\">True</td><td>שני התנאים מתקיימים</td></tr>\n    <tr><td>5 &amp; 3</td><td>סיבי</td><td class=\"o\">1</td><td>101 &amp; 011 = 001</td></tr>\n    <tr><td>5 | 3</td><td>סיבי</td><td class=\"o\">7</td><td>101 | 011 = 111</td></tr>\n  </table>"
+    "body": "\n  <div class=\"grid cols-2\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">and · or · not</span></h3><p><strong>לוגיים</strong> — עובדים על ערכי אמת שלמים (True / False). מחזירים תשובה אחת: האם התנאי כולו מתקיים. משמשים ב-if וב-while.</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">&amp; · | · ^ · ~</span></h3><p><strong>סיביים</strong> — עובדים על מספרים שלמים, ביט מול ביט. מחזירים מספר שלם חדש. משמשים לחישובים ברמת הביט.</p></div>\n  </div>\n  <table class=\"trace ltr\" style=\"margin-top:16px\">\n    <tr><th>ביטוי</th><th>סוג</th><th>תוצאה</th><th>למה</th></tr>\n    <tr><td>5 &gt; 3 and 2 &gt; 1</td><td>לוגי</td><td class=\"t\">True</td><td>שני התנאים מתקיימים</td></tr>\n    <tr><td>5 &amp; 3</td><td>סיבי</td><td class=\"o\">1</td><td>101 &amp; 011 = 001</td></tr>\n    <tr><td>5 | 3</td><td>סיבי</td><td class=\"o\">7</td><td>101 | 011 = 111</td></tr>\n  </table>"
   },
   {
     "type": "code",
@@ -2542,13 +2544,13 @@ const SLIDES = [
     "type": "content",
     "eyebrow": "למה זה מסוכן",
     "title": "אותה תוצאה <span class='accent'>במקרה</span>",
-    "body": "\n  <p class=\"body-text\">כאן שתי השורות הדפיסו True — אבל <strong class=\"hl2\">מסיבות שונות לגמרי</strong>. עם <code style=\"font-family:var(--font-mono)\">x = 3</code> השורה הראשונה תיתן False (3 לא בין 5 ל-10), אבל השנייה תיתן True: <code style=\"font-family:var(--font-mono)\">5 &amp; 3 = 1</code>, ו-<code style=\"font-family:var(--font-mono)\">3 &gt; 1 &lt; 10</code> מתקיים. באג שלא זורק שגיאה — רק תשובות לא נכונות.</p>\n  <div class=\"callout warn\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-warn\"/></svg>\n    <p>כלל ברזל: בתוך <code style=\"font-family:var(--font-mono)\">if</code> / <code style=\"font-family:var(--font-mono)\">while</code>, לחיבור תנאים משתמשים <strong>רק</strong> ב-<code style=\"font-family:var(--font-mono)\">and</code> / <code style=\"font-family:var(--font-mono)\">or</code> / <code style=\"font-family:var(--font-mono)\">not</code>. האופרטורים הסיביים שמורים לעבודה על ביטים של מספרים.</p>\n  </div>"
+    "body": "\n  <p class=\"body-text\">כאן שתי השורות הדפיסו True — אבל <strong class=\"hl2\">מסיבות שונות לגמרי</strong>. עם <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">x = 3</code> השורה הראשונה תיתן False (3 לא בין 5 ל-10), אבל השנייה תיתן True: <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">5 &amp; 3 = 1</code>, ו-<code dir=\"ltr\" style=\"font-family:var(--font-mono)\">3 &gt; 1 &lt; 10</code> מתקיים. באג שלא זורק שגיאה — רק תשובות לא נכונות.</p>\n  <div class=\"callout warn\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-warn\"/></svg>\n    <p>כלל ברזל: בתוך <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">if</code> / <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">while</code>, לחיבור תנאים משתמשים <strong>רק</strong> ב-<code dir=\"ltr\" style=\"font-family:var(--font-mono)\">and</code> / <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">or</code> / <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">not</code>. האופרטורים הסיביים שמורים לעבודה על ביטים של מספרים.</p>\n  </div>"
   },
   {
     "type": "content",
     "eyebrow": "טכניקה · מסכה",
     "title": "ניהול <span class='accent'>ביט בודד</span>",
-    "body": "\n  <p class=\"body-text\">כדי לגשת לביט מספר <code style=\"font-family:var(--font-mono)\">i</code> בונים <strong class=\"hl2\">מסכה</strong> (mask) — מספר שבו רק הביט הזה דלוק: <code style=\"font-family:var(--font-mono)\">1 &lt;&lt; i</code>. ואז משלבים אותה עם האופרטור המתאים:</p>\n  <div class=\"grid cols-2\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\">n &amp; (1 &lt;&lt; i)</h3><p><strong>בדיקה</strong> — שונה מ-0 אם ביט i דלוק</p></div>\n    <div class=\"card green\"><h3 style=\"font-family:var(--font-mono)\">n | (1 &lt;&lt; i)</h3><p><strong>הדלקה</strong> — ביט i הופך ל-1, השאר לא משתנים</p></div>\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\">n &amp; ~(1 &lt;&lt; i)</h3><p><strong>כיבוי</strong> — ביט i הופך ל-0, השאר לא משתנים</p></div>\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\">n ^ (1 &lt;&lt; i)</h3><p><strong>היפוך</strong> — ביט i מתחלף (0↔1)</p></div>\n  </div>"
+    "body": "\n  <p class=\"body-text\">כדי לגשת לביט מספר <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">i</code> בונים <strong class=\"hl2\">מסכה</strong> (mask) — מספר שבו רק הביט הזה דלוק: <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">1 &lt;&lt; i</code>. ואז משלבים אותה עם האופרטור המתאים:</p>\n  <div class=\"grid cols-2\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">n &amp; (1 &lt;&lt; i)</span></h3><p><strong>בדיקה</strong> — שונה מ-0 אם ביט i דלוק</p></div>\n    <div class=\"card green\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">n | (1 &lt;&lt; i)</span></h3><p><strong>הדלקה</strong> — ביט i הופך ל-1, השאר לא משתנים</p></div>\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">n &amp; ~(1 &lt;&lt; i)</span></h3><p><strong>כיבוי</strong> — ביט i הופך ל-0, השאר לא משתנים</p></div>\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">n ^ (1 &lt;&lt; i)</span></h3><p><strong>היפוך</strong> — ביט i מתחלף (0↔1)</p></div>\n  </div>"
   },
   {
     "type": "code",
@@ -3302,7 +3304,7 @@ const SLIDES = [
     "type": "content",
     "eyebrow": "שימו לב",
     "title": "למה <span class='accent' dir='ltr'>if perms &amp; WRITE:</span> עובד?",
-    "body": "\n  <p class=\"body-text\"><code style=\"font-family:var(--font-mono)\">perms &amp; WRITE</code> מחזיר מספר: 2 אם הביט דלוק, 0 אם לא. ב-<code style=\"font-family:var(--font-mono)\">if</code>, פייתון מתייחסת ל-<strong class=\"hl2\">0 כ-False</strong> ולכל מספר אחר כ-True. אותו כלל תקף ל-<code style=\"font-family:var(--font-mono)\">\"\"</code> (מחרוזת ריקה = False) ולכל מחרוזת אחרת (True).</p>\n  <div class=\"callout tip\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>זה גם מסביר את המלכודת <code style=\"font-family:var(--font-mono)\">x == 1 or 2</code> מהחלק הראשון: 2 הוא מספר שונה מאפס, ולכן \"אמיתי\".</p>\n  </div>"
+    "body": "\n  <p class=\"body-text\"><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">perms &amp; WRITE</code> מחזיר מספר: 2 אם הביט דלוק, 0 אם לא. ב-<code dir=\"ltr\" style=\"font-family:var(--font-mono)\">if</code>, פייתון מתייחסת ל-<strong class=\"hl2\">0 כ-False</strong> ולכל מספר אחר כ-True. אותו כלל תקף ל-<code dir=\"ltr\" style=\"font-family:var(--font-mono)\">\"\"</code> (מחרוזת ריקה = False) ולכל מחרוזת אחרת (True).</p>\n  <div class=\"callout tip\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>זה גם מסביר את המלכודת <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">x == 1 or 2</code> מהחלק הראשון: 2 הוא מספר שונה מאפס, ולכן \"אמיתי\".</p>\n  </div>"
   },
   {
     "type": "exercises",
@@ -3336,7 +3338,7 @@ const SLIDES = [
     "type": "content",
     "eyebrow": "טעויות נפוצות",
     "title": "ארבע מלכודות <span class='accent'>שכדאי להכיר</span>",
-    "body": "\n  <div class=\"grid cols-2\">\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\">x == 1 or 2</h3><p>תמיד True. כל צד של or / and חייב להיות השוואה שלמה.</p></div>\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\">&amp; במקום and</h3><p>קדימות שונה, משמעות שונה. בתנאים — רק and / or / not.</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\">a or b and c</h3><p>and קודם ל-or. לא בטוחים? סוגריים.</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\">~5 == -6</h3><p>NOT סיבי הופך גם את ביט הסימן. ~x = -x-1.</p></div>\n  </div>"
+    "body": "\n  <div class=\"grid cols-2\">\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">x == 1 or 2</span></h3><p>תמיד True. כל צד של or / and חייב להיות השוואה שלמה.</p></div>\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">&amp; במקום and</span></h3><p>קדימות שונה, משמעות שונה. בתנאים — רק and / or / not.</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">a or b and c</span></h3><p>and קודם ל-or. לא בטוחים? סוגריים.</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">~5 == -6</span></h3><p>NOT סיבי הופך גם את ביט הסימן. ~x = -x-1.</p></div>\n  </div>"
   },
   {
     "type": "exercises",
@@ -3446,7 +3448,7 @@ const SLIDES = [
     "type": "content",
     "eyebrow": "לפני שסוגרים",
     "title": "שישה דברים <span class='accent'>לזכור</span> מהיום",
-    "body": "\n  <div class=\"grid cols-3\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\">and / or / not</h3><p>מחברים תנאים בוליאניים לתנאי אחד</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\">not &gt; and &gt; or</h3><p>סדר קדימויות — וסוגריים כשלא בטוחים</p></div>\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\">x == 1 or x == 2</h3><p>כל צד — השוואה שלמה. אין קיצורים</p></div>\n    <div class=\"card green\"><h3 style=\"font-family:var(--font-mono)\">&amp; | ^ ~ &lt;&lt; &gt;&gt;</h3><p>עובדים ביט מול ביט על מספרים שלמים</p></div>\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\">and ≠ &amp;</h3><p>לוגי לתנאים, סיבי לביטים — לא מערבבים</p></div>\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\">1 &lt;&lt; i</h3><p>מסכה לביט i: &amp; לבדיקה, | להדלקה, &amp; ~ לכיבוי</p></div>\n  </div>"
+    "body": "\n  <div class=\"grid cols-3\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">and / or / not</span></h3><p>מחברים תנאים בוליאניים לתנאי אחד</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">not &gt; and &gt; or</span></h3><p>סדר קדימויות — וסוגריים כשלא בטוחים</p></div>\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">x == 1 or x == 2</span></h3><p>כל צד — השוואה שלמה. אין קיצורים</p></div>\n    <div class=\"card green\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">&amp; | ^ ~ &lt;&lt; &gt;&gt;</span></h3><p>עובדים ביט מול ביט על מספרים שלמים</p></div>\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">and ≠ &amp;</span></h3><p>לוגי לתנאים, סיבי לביטים — לא מערבבים</p></div>\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">1 &lt;&lt; i</span></h3><p>מסכה לביט i: &amp; לבדיקה, | להדלקה, &amp; ~ לכיבוי</p></div>\n  </div>"
   },
   {
     "type": "title",
@@ -3577,4 +3579,32 @@ function buildSlide(s, i){
     touchX = null;
   }, {passive:true});
 })();
+
+function fitTallSlides(){
+  const SAFE = 44;   // keep clear of the nav dots / buttons at the bottom
+  document.querySelectorAll('.slide').forEach(sl => {
+    if (!sl.clientHeight) return;
+    const over = () => {   // does the content end below the safe area?
+      const top = sl.getBoundingClientRect().top;
+      const bottom = Math.max(...[...sl.children].map(c => c.getBoundingClientRect().bottom));
+      return bottom - top > sl.clientHeight - SAFE;
+    };
+    const code = sl.querySelector('.codewrap'), out = sl.querySelector('.outwrap');
+    if (!over()) return;
+    if (!code) {           // text slides: zoom the content out a little
+      let z = 1;
+      while (over() && z > 0.8) { z -= 0.02; [...sl.children].forEach(c => c.style.zoom = z); }
+      return;
+    }
+    if (out) {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:grid;grid-template-columns:1.45fr 1fr;gap:16px;align-items:start;direction:ltr';
+      code.before(row); row.append(code, out); out.style.marginTop = '0';
+    }
+    const els = sl.querySelectorAll('pre.code, .obody');
+    let fs = 14.5;
+    while (over() && fs > 10.5) { fs -= 0.5; els.forEach(e => { e.style.fontSize = fs + 'px'; e.style.lineHeight = '1.55'; }); }
+  });
+}
+window.addEventListener('load', () => (document.fonts ? document.fonts.ready : Promise.resolve()).then(fitTallSlides));
 </script>

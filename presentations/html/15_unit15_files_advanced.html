@@ -1,0 +1,7414 @@
+<title>יחידה 15 · עבודה מתקדמת עם קבצים</title>
+<style>
+/* ============================================================
+   DESIGN SYSTEM
+   Concept: the deck itself is staged as a code editor / terminal
+   window (title-bar dots, file tab) — grounded in the subject
+   (learning to code) rather than a generic slide template.
+   Committed single dark "editor" world by design (like a themed
+   terminal), the same way a themed arcade screen stays single-mode.
+   Font stack is an intentional native Hebrew system stack: the
+   Artifact sandbox blocks external font fetches, so rather than
+   link a webfont that silently falls back, we design directly
+   for the Hebrew system faces students' machines already have.
+   ============================================================ */
+:root{
+  --bg:            #0f1420;
+  --bg-panel:      #161c2c;
+  --bg-panel-2:    #1b2338;
+  --bg-titlebar:   #10151f;
+  --ink:           #e9edf6;
+  --ink-dim:       #939bb8;
+  --ink-faint:     #5c6485;
+  --line:          #2a3350;
+  --line-soft:     #212a44;
+
+  --blue:          #55c6f2;
+  --blue-dim:      #2d4a63;
+  --gold:          #ffd166;
+  --gold-dim:      #5a4a2c;
+  --coral:         #ff7a7a;
+  --coral-dim:     #5a2f34;
+  --green:         #6fe3b4;
+  --green-dim:     #204538;
+  --violet:        #bda2f2;
+  --violet-dim:    #3a2f57;
+
+  --font-display: "Rubik", "Segoe UI Variable Display", "Segoe UI", "Arial Hebrew", "Noto Sans Hebrew", "Heebo", "Arial", sans-serif;
+  --font-body:    "Assistant", "Segoe UI", "Arial Hebrew", "Noto Sans Hebrew", "Heebo", "Arial", sans-serif;
+  --font-mono:    "JetBrains Mono", "Fira Code", "Cascadia Code", ui-monospace, "SF Mono", Consolas, "Courier New", monospace;
+
+  --radius: 18px;
+  --shadow: 0 30px 80px -20px rgba(0,0,0,.65), 0 10px 30px -12px rgba(0,0,0,.5);
+}
+:root[data-theme="light"], :root[data-theme="dark"]{
+  /* Deliberately single-themed (see note above) — both branches keep the editor palette. */
+  --bg:#0f1420; --bg-panel:#161c2c; --bg-panel-2:#1b2338; --bg-titlebar:#10151f;
+  --ink:#e9edf6; --ink-dim:#939bb8; --ink-faint:#5c6485; --line:#2a3350; --line-soft:#212a44;
+}
+
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0;
+  background:
+    radial-gradient(1100px 620px at 12% -8%, #1a2440 0%, transparent 60%),
+    radial-gradient(900px 560px at 108% 8%, #1c1f3a 0%, transparent 55%),
+    var(--bg);
+  color:var(--ink);
+  font-family:var(--font-body);
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{ background:var(--blue); color:#0f1420; }
+
+/* ---------- stage & deck window ---------- */
+.stage{
+  position:fixed; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  padding:clamp(10px,3vh,34px) clamp(10px,3vw,34px);
+}
+.deck{
+  position:relative;
+  width:min(1180px, 96vw);
+  height:min(720px, 92vh);
+  background:linear-gradient(180deg, var(--bg-panel), var(--bg-panel-2));
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  display:flex; flex-direction:column;
+  overflow:hidden;
+}
+.titlebar{
+  display:flex; align-items:center; gap:14px;
+  padding:12px 18px;
+  background:var(--bg-titlebar);
+  border-bottom:1px solid var(--line);
+  direction:ltr; /* window chrome is a UI artifact, always LTR like a real editor */
+}
+.tb-dots{ display:flex; gap:7px; }
+.tb-dots span{ width:11px; height:11px; border-radius:50%; display:block; }
+.tb-dots span:nth-child(1){ background:#ff6159; }
+.tb-dots span:nth-child(2){ background:#ffbd2e; }
+.tb-dots span:nth-child(3){ background:#28c93f; }
+.tb-tab{
+  font-family:var(--font-mono);
+  font-size:12.5px;
+  color:var(--ink-dim);
+  background:var(--bg-panel);
+  border:1px solid var(--line);
+  border-bottom:none;
+  padding:5px 12px 6px;
+  border-radius:8px 8px 0 0;
+  margin-inline-start:6px;
+}
+.tb-tab b{ color:var(--gold); font-weight:600; }
+.tb-spacer{ flex:1; }
+.tb-progress-label{
+  font-family:var(--font-mono); font-size:12px; color:var(--ink-faint);
+  font-variant-numeric:tabular-nums;
+}
+
+.progress-track{ height:3px; background:var(--line-soft); position:relative; }
+.progress-fill{ position:absolute; inset-inline-start:0; top:0; bottom:0; width:0%;
+  background:linear-gradient(90deg, var(--blue), var(--green));
+  transition:width .35s ease; }
+
+/* ---------- slide viewport ---------- */
+.viewport{ position:relative; flex:1; overflow:hidden; }
+.slide{
+  position:absolute; inset:0;
+  display:flex; flex-direction:column;
+  padding:clamp(26px,4.4vh,52px) clamp(34px,6vw,76px);
+  opacity:0; transform:translateY(14px) scale(.99);
+  pointer-events:none;
+  transition:opacity .38s ease, transform .38s ease;
+  overflow-y:auto;
+  direction:rtl;
+}
+.slide.active{ opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
+@media (prefers-reduced-motion: reduce){
+  .slide{ transition:opacity .01s linear; transform:none; }
+}
+
+.eyebrow{
+  font-family:var(--font-mono); font-size:13px; letter-spacing:.02em;
+  color:var(--blue); display:flex; align-items:center; gap:8px; margin-bottom:14px;
+  direction:ltr; justify-content:flex-end;
+}
+.eyebrow .dot{ width:6px; height:6px; border-radius:50%; background:var(--blue); }
+
+h1.slide-title{
+  font-family:var(--font-display); font-weight:700;
+  font-size:clamp(28px,4.4vh,44px); line-height:1.15; margin:0 0 .4em;
+  text-wrap:balance; color:var(--ink);
+}
+h1.slide-title .accent{ color:var(--gold); }
+h2.slide-sub{
+  font-family:var(--font-body); font-weight:500; color:var(--ink-dim);
+  font-size:clamp(15px,2.2vh,19px); margin:0 0 1.1em; line-height:1.6; max-width:62ch;
+}
+
+.body-text{ font-size:clamp(15px,2.1vh,18px); line-height:1.75; color:var(--ink); max-width:70ch; }
+.body-text + .body-text{ margin-top:.8em; }
+
+/* ---------- title slide ---------- */
+.slide.title-slide{ align-items:center; justify-content:center; text-align:center; }
+.title-slide .kicker{
+  font-family:var(--font-mono); color:var(--green); font-size:14px;
+  border:1px solid var(--green-dim); background:rgba(111,227,180,.08);
+  padding:6px 16px; border-radius:999px; margin-bottom:26px; direction:ltr;
+}
+.title-slide h1{
+  font-family:var(--font-display); font-weight:800;
+  font-size:clamp(38px,7vh,68px); line-height:1.08; margin:0 0 .3em; text-wrap:balance;
+}
+.title-slide .py-mark{ color:var(--blue); }
+.title-slide .py-mark2{ color:var(--gold); }
+.title-slide p{ color:var(--ink-dim); font-size:clamp(16px,2.4vh,21px); max-width:56ch; margin:0 auto; line-height:1.6; }
+.prompt-line{
+  margin-top:36px; font-family:var(--font-mono); color:var(--ink-faint); font-size:15px; direction:ltr;
+}
+.prompt-line .caret{ display:inline-block; width:9px; height:1.1em; background:var(--green); margin-inline-start:4px; vertical-align:-2px;
+  animation:blink 1.1s steps(1) infinite; }
+@keyframes blink{ 50%{ opacity:0; } }
+@media (prefers-reduced-motion: reduce){ .prompt-line .caret{ animation:none; } }
+
+/* ---------- icon grid (industries etc.) ---------- */
+.grid{ display:grid; gap:16px; margin-top:8px; }
+.grid.cols-4{ grid-template-columns:repeat(4,1fr); }
+.grid.cols-3{ grid-template-columns:repeat(3,1fr); }
+.grid.cols-2{ grid-template-columns:repeat(2,1fr); }
+.card{
+  background:var(--bg-titlebar); border:1px solid var(--line); border-radius:14px;
+  padding:16px 16px 15px; display:flex; flex-direction:column; gap:8px;
+}
+.card .icon{ width:34px; height:34px; }
+.card h3{ margin:2px 0 0; font-family:var(--font-display); font-size:15.5px; font-weight:700; color:var(--ink); }
+.card p{ margin:0; font-size:13.5px; line-height:1.55; color:var(--ink-dim); }
+.card.blue .icon{ color:var(--blue); } .card.blue{ border-color:var(--blue-dim); }
+.card.gold .icon{ color:var(--gold); } .card.gold{ border-color:var(--gold-dim); }
+.card.coral .icon{ color:var(--coral); } .card.coral{ border-color:var(--coral-dim); }
+.card.green .icon{ color:var(--green); } .card.green{ border-color:var(--green-dim); }
+.card.violet .icon{ color:var(--violet); } .card.violet{ border-color:var(--violet-dim); }
+
+/* ---------- badge chips (companies, tags) ---------- */
+.chiprow{ display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; direction:rtl; }
+.chip{
+  font-family:var(--font-mono); font-size:13.5px; color:var(--ink);
+  background:var(--bg-titlebar); border:1px solid var(--line);
+  padding:7px 14px; border-radius:999px; direction:ltr;
+}
+
+/* ---------- two-col layout ---------- */
+.split{ display:grid; grid-template-columns:1.1fr .9fr; gap:34px; align-items:center; flex:1; }
+.split .art{ display:flex; align-items:center; justify-content:center; }
+
+/* ---------- code block ---------- */
+.codewrap{
+  background:#0c1019; border:1px solid var(--line); border-radius:12px; overflow:hidden;
+  direction:ltr; text-align:left;
+}
+.codewrap .chead{
+  display:flex; align-items:center; gap:8px; padding:8px 12px; background:var(--bg-titlebar);
+  border-bottom:1px solid var(--line); font-family:var(--font-mono); font-size:11.5px; color:var(--ink-faint);
+}
+.codewrap .chead b{ color:var(--green); font-weight:600; }
+pre.code{
+  margin:0; padding:16px 18px; font-family:var(--font-mono); font-size:14.5px; line-height:1.7;
+  overflow-x:auto; direction:ltr; text-align:left; white-space:pre;
+}
+.tok-kw{ color:var(--violet); font-weight:600; }
+.tok-str{ color:var(--gold); }
+.tok-num{ color:var(--coral); }
+.tok-com{ color:var(--ink-faint); font-style:italic; }
+.tok-fn{ color:var(--blue); }
+.tok-var{ color:#9fd3ff; }
+.tok-punc{ color:var(--ink-dim); }
+
+.outwrap{ background:#0a0d14; border:1px solid var(--line); border-radius:12px; overflow:hidden; direction:ltr; text-align:left; }
+.outwrap .ohead{ padding:8px 12px; background:var(--bg-titlebar); border-bottom:1px solid var(--line);
+  font-family:var(--font-mono); font-size:11.5px; color:var(--ink-faint); }
+.outwrap .obody{ padding:14px 18px; font-family:var(--font-mono); font-size:14.5px; color:var(--green); white-space:pre-wrap; line-height:1.7; }
+
+/* ---------- exercise list ---------- */
+.exlist{ list-style:none; margin:10px 0 0; padding:0; display:flex; flex-direction:column; gap:12px; }
+.exlist li{
+  display:flex; gap:14px; align-items:flex-start;
+  background:var(--bg-titlebar); border:1px solid var(--line); border-radius:12px; padding:13px 16px;
+}
+.exnum{
+  flex:none; width:26px; height:26px; border-radius:8px; background:var(--bg-panel-2);
+  border:1px solid var(--line); display:flex; align-items:center; justify-content:center;
+  font-family:var(--font-mono); font-size:13px; color:var(--ink-dim); font-variant-numeric:tabular-nums;
+}
+.exbody{ flex:1; font-size:15px; line-height:1.6; }
+.exbody code{ font-family:var(--font-mono); background:var(--bg-panel-2); padding:1px 6px; border-radius:5px; color:var(--gold); direction:ltr; unicode-bidi:isolate; display:inline-block; }
+.tag{
+  flex:none; font-family:var(--font-mono); font-size:11px; padding:3px 9px; border-radius:999px;
+  height:fit-content; direction:ltr;
+}
+.tag.easy{ background:var(--green-dim); color:var(--green); }
+.tag.med{ background:var(--gold-dim); color:var(--gold); }
+.tag.hard{ background:var(--coral-dim); color:var(--coral); }
+
+/* ---------- callouts ---------- */
+.callout{ display:flex; gap:12px; align-items:flex-start; padding:14px 16px; border-radius:12px; margin-top:14px; }
+.callout .icon{ width:22px; height:22px; flex:none; margin-top:2px; }
+.callout p{ margin:0; font-size:14.5px; line-height:1.6; }
+.callout.warn{ background:rgba(255,122,122,.08); border:1px solid var(--coral-dim); }
+.callout.warn .icon{ color:var(--coral); }
+.callout.tip{ background:rgba(111,227,180,.08); border:1px solid var(--green-dim); }
+.callout.tip .icon{ color:var(--green); }
+
+ul.plain, ol.plain{ margin:10px 0 0; padding-inline-start:1.3em; display:flex; flex-direction:column; gap:9px; }
+ul.plain li, ol.plain li{ font-size:15.5px; line-height:1.65; }
+ul.plain li::marker{ color:var(--blue); }
+strong.hl{ color:var(--gold); font-weight:700; }
+strong.hl2{ color:var(--blue); font-weight:700; }
+
+/* ---------- roadmap timeline ---------- */
+.roadmap{ display:flex; flex-direction:column; gap:10px; margin-top:10px; }
+.rgroup{ display:flex; gap:14px; align-items:stretch; }
+.rgroup .rlabel{
+  flex:none; width:118px; display:flex; align-items:center; justify-content:center; text-align:center;
+  font-family:var(--font-display); font-weight:700; font-size:13.5px; border-radius:10px; padding:10px 6px;
+}
+.rgroup .ritems{ flex:1; display:flex; flex-wrap:wrap; gap:8px; align-content:center; }
+.rchip{ background:var(--bg-titlebar); border:1px solid var(--line); border-radius:8px; padding:7px 12px; font-size:13px; color:var(--ink-dim); }
+.rgroup.p1 .rlabel{ background:var(--blue-dim); color:var(--blue); }
+.rgroup.p2 .rlabel{ background:var(--gold-dim); color:var(--gold); }
+.rgroup.p3 .rlabel{ background:var(--violet-dim); color:var(--violet); }
+.rgroup.p4 .rlabel{ background:var(--green-dim); color:var(--green); }
+
+/* ---------- controls ---------- */
+.controls{
+  position:absolute; bottom:16px; inset-inline-end:16px; display:flex; gap:8px; z-index:5;
+  direction:ltr;
+}
+.ctrl-btn{
+  width:40px; height:40px; border-radius:10px; border:1px solid var(--line);
+  background:var(--bg-titlebar); color:var(--ink-dim); display:flex; align-items:center; justify-content:center;
+  cursor:pointer; transition:background .15s, color .15s, border-color .15s;
+}
+.ctrl-btn:hover{ background:var(--bg-panel-2); color:var(--ink); border-color:var(--blue-dim); }
+.ctrl-btn:focus-visible{ outline:2px solid var(--blue); outline-offset:2px; }
+.ctrl-btn svg{ width:18px; height:18px; }
+
+.dots-nav{ position:absolute; bottom:20px; inset-inline-start:20px; display:flex; gap:6px; z-index:5; direction:ltr; }
+.dots-nav button{
+  width:7px; height:7px; border-radius:50%; border:none; background:var(--line); cursor:pointer; padding:0;
+}
+.dots-nav button.on{ background:var(--blue); width:20px; border-radius:4px; }
+
+.hint{ position:absolute; bottom:18px; left:50%; transform:translateX(-50%); font-family:var(--font-mono);
+  font-size:11.5px; color:var(--ink-faint); z-index:4; }
+
+@media (max-width:760px){
+  .split{ grid-template-columns:1fr; }
+  .grid.cols-4{ grid-template-columns:repeat(2,1fr); }
+  .grid.cols-3{ grid-template-columns:repeat(2,1fr); }
+}
+
+/* ---------- trace tables (unit 7+) ---------- */
+table.trace{ border-collapse:collapse; margin-top:12px; font-size:14px; direction:rtl; }
+table.trace th, table.trace td{ border:1px solid var(--line); padding:6px 12px; text-align:center; }
+table.trace th{ background:var(--bg-titlebar); color:var(--ink-dim); font-family:var(--font-display); font-weight:700; font-size:13px; }
+table.trace td{ font-family:var(--font-mono); color:var(--ink); direction:ltr; unicode-bidi:isolate; }
+table.trace td.t{ color:var(--green); } table.trace td.f{ color:var(--coral); }
+table.trace td.o{ color:var(--gold); }
+pre.file{ background:#0a0d14; border:1px solid var(--line); border-radius:10px; padding:10px 16px; margin:8px 0 0;
+  font-family:var(--font-mono); font-size:14px; color:var(--ink); direction:ltr; text-align:left; white-space:pre; }
+
+pre.code .tok-str, pre.code .tok-com{ unicode-bidi:isolate; }
+</style>
+
+<div class="stage">
+  <div class="deck" id="deck">
+    <div class="titlebar">
+      <div class="tb-dots"><span></span><span></span><span></span></div>
+      <div class="tb-tab"><b>py</b>_course — <span id="tb-name">00_intro.py</span></div>
+      <div class="tb-spacer"></div>
+      <div class="tb-progress-label"><span id="pg-cur">1</span> / <span id="pg-total">1</span></div>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="viewport" id="viewport"></div>
+    <div class="dots-nav" id="dotsNav"></div>
+    <div class="controls">
+      <button class="ctrl-btn" id="btnFs" title="מסך מלא" aria-label="מסך מלא">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4M20 15v4a1 1 0 0 1-1 1h-4"/></svg>
+      </button>
+      <button class="ctrl-btn" id="btnPrev" title="הקודם" aria-label="הקודם">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <button class="ctrl-btn" id="btnNext" title="הבא" aria-label="הבא">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<svg width="0" height="0" style="position:absolute">
+<defs>
+<symbol id="ic-brain" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M9 4a3 3 0 0 0-3 3v.3A3 3 0 0 0 4 10v1a3 3 0 0 0 1 2.2V15a3 3 0 0 0 3 3h1v2M9 4a3 3 0 0 1 3 3v13M9 4h1M4 10h2M4.2 13.5H7"/>
+  <path d="M15 4a3 3 0 0 1 3 3v.3a3 3 0 0 1 2 2.7v1a3 3 0 0 1-1 2.2V15a3 3 0 0 1-3 3h-1"/>
+  <path d="M15 4a3 3 0 0 0-3 3M18 10h2M19.8 13.5H17"/>
+</symbol>
+<symbol id="ic-terminal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/>
+</symbol>
+<symbol id="ic-cpu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9" y="9" width="6" height="6" rx="1"/>
+  <path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/>
+</symbol>
+<symbol id="ic-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.7 2.6 4 5.7 4 9s-1.3 6.4-4 9c-2.7-2.6-4-5.7-4-9s1.3-6.4 4-9Z"/>
+</symbol>
+<symbol id="ic-robot" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="5" y="9" width="14" height="10" rx="2"/><circle cx="9.5" cy="14" r="1.2" fill="currentColor" stroke="none"/><circle cx="14.5" cy="14" r="1.2" fill="currentColor" stroke="none"/>
+  <path d="M12 9V6M9 6h6M4 13H2M22 13h-2"/>
+</symbol>
+<symbol id="ic-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M4 20V10M10 20V4M16 20v-7M4 20h16"/>
+</symbol>
+<symbol id="ic-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12 3l7 3v6c0 4.5-3 7.7-7 9-4-1.3-7-4.5-7-9V6l7-3Z"/><path d="M9 12l2 2 4-4"/>
+</symbol>
+<symbol id="ic-network" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="4.5" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/>
+  <path d="M12 6.5v4M12 10.5 6 16M12 10.5l6 5.5"/>
+</symbol>
+<symbol id="ic-rocket" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12 2c3 1.5 5 5 5 9 0 2-1 4-2 5l-3 2-3-2c-1-1-2-3-2-5 0-4 2-7.5 5-9Z"/><circle cx="12" cy="9" r="1.6"/>
+  <path d="M9 16l-2 4M15 16l2 4M9 20h6"/>
+</symbol>
+<symbol id="ic-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="12" r="3.2"/><path d="M12 3v2.4M12 18.6V21M21 12h-2.4M5.4 12H3M18 6l-1.7 1.7M7.7 16.3 6 18M18 18l-1.7-1.7M7.7 7.7 6 6"/>
+</symbol>
+<symbol id="ic-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5v-15Z"/><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20"/>
+</symbol>
+<symbol id="ic-gamepad" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M6 9h12l2 7a2 2 0 0 1-3.5 1.8L15 16H9l-1.5 1.8A2 2 0 0 1 4 16l2-7Z"/><path d="M8 12h2M9 11v2M16 11.5h.01M18 13h.01"/>
+</symbol>
+<symbol id="ic-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M20 6 9 17l-5-5"/>
+</symbol>
+<symbol id="ic-warn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12 3 2 20h20L12 3Z"/><path d="M12 9v5M12 17h.01"/>
+</symbol>
+<symbol id="ic-bulb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M9 18h6M10 21h4M7 9a5 5 0 1 1 8.7 3.4c-.8.9-1.7 1.7-1.7 3.1v.5H10v-.5c0-1.4-.9-2.2-1.7-3.1A5 5 0 0 1 7 9Z"/>
+</symbol>
+<symbol id="ic-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/>
+</symbol>
+</defs>
+</svg>
+
+<script>
+/* ============================================================
+   SLIDE DATA — deck 15: עבודה מתקדמת עם קבצים – חיפוש, ניתוח והעתקה
+   ============================================================ */
+const FILE_NAME = "15_files_advanced.py";
+const SLIDES = [
+  {
+    "type": "title",
+    "kicker": "תקשוב ומחשבים &middot; יחידה 15",
+    "title": "קבצים <span class=\"py-mark\">לעומק</span> — חיפוש, ניתוח, <span class=\"py-mark2\">CSV</span>",
+    "sub": "היחידה האחרונה בקורס: מחברים את כל מה שלמדנו — לולאות, רשימות, מילונים ופונקציות — כדי לעבד קבצים אמיתיים.",
+    "prompt": ">>> name, grade = line.split(\",\") <span class=\"caret\"></span>"
+  },
+  {
+    "type": "content",
+    "eyebrow": "תזכורת מהיחידה הקודמת",
+    "title": "מה <span class='accent'>למדנו</span> ביחידה 14?",
+    "body": "\n  <ul class=\"plain\">\n    <li><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">with open(name, mode, encoding=\"utf-8\") as f:</code> — פתיחה וסגירה אוטומטית</li>\n    <li><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">\"w\"</code> דורס, <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">\"a\"</code> מוסיף, <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">\"r\"</code> קורא</li>\n    <li><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">f.write(s)</code> — רק מחרוזות, ובלי שורה חדשה אוטומטית</li>\n    <li><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">for line in f:</code> + <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">line.strip()</code> — הדרך לקרוא שורות</li>\n  </ul>"
+  },
+  {
+    "type": "content",
+    "eyebrow": "מטרות השיעור",
+    "title": "מה <span class='accent'>נלמד</span> היום?",
+    "body": "\n  <ul class=\"plain\">\n    <li><strong class=\"hl\">חיפוש</strong> בקובץ — האם מילה מופיעה, ובאילו שורות</li>\n    <li><strong class=\"hl\">ניתוח</strong> קובץ — ספירת שורות, מילים ותווים; המילה השכיחה</li>\n    <li><strong class=\"hl2\">העתקה</strong> וסינון — קובץ חדש מתוך קובץ קיים</li>\n    <li>קובצי <strong class=\"hl\">CSV</strong> — טבלאות בקובץ טקסט, כמו באקסל</li>\n    <li>כתיבת <strong class=\"hl2\">דוח</strong> לקובץ</li>\n    <li>פרויקט קטן שמשלב את כל הקורס</li>\n  </ul>"
+  },
+  {
+    "type": "content",
+    "eyebrow": "הקובץ של היום",
+    "title": "<span class='accent'>story.txt</span>",
+    "body": "\n  <p class=\"body-text\">רוב הדוגמאות ביחידה עובדות על הקובץ הזה. שימו לב לשורה הריקה:</p>\n  <pre class=\"file\">the cat sat on the mat\nthe dog ran\n\na cat and a dog</pre>\n  <div class=\"callout tip\" style=\"margin-top:14px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>בכל דוגמת קוד, השורות הראשונות <strong>יוצרות</strong> את הקובץ — כך שאפשר להריץ כל דוגמה בפני עצמה.</p>\n  </div>"
+  },
+  {
+    "type": "code",
+    "eyebrow": "חיפוש",
+    "title": "האם המילה <span class='accent'>מופיעה?</span>",
+    "desc": "read מחזירה מחרוזת אחת — ו-in בודק אם תת-מחרוזת נמצאת בה:",
+    "setup": "with open(\"story.txt\", \"w\", encoding=\"utf-8\") as f:\n    f.write(\"the cat sat on the mat\\nthe dog ran\\n\\na cat and a dog\\n\")\n",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"story.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "text"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "read"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"dog\""
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "text"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"bird\""
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "text"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "True\nFalse"
+  },
+  {
+    "type": "code",
+    "eyebrow": "חיפוש לפי שורה",
+    "title": "<span class='accent'>באילו שורות?</span>",
+    "desc": "enumerate נותנת מספר שורה; start=1 כדי להתחיל מ-1 כמו בעורך:",
+    "setup": "with open(\"story.txt\", \"w\", encoding=\"utf-8\") as f:\n    f.write(\"the cat sat on the mat\\nthe dog ran\\n\\na cat and a dog\\n\")\n",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "word"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"cat\""
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"story.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "num"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "enumerate"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "start"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-num",
+        "c": "1"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-kw",
+        "c": "if"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "word"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "            "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "num"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\":\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "strip"
+      },
+      {
+        "t": "tok-punc",
+        "c": "())"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "1 : the cat sat on the mat\n4 : a cat and a dog"
+  },
+  {
+    "type": "content",
+    "eyebrow": "שימו לב",
+    "title": "<span class='accent'>מילה</span> או רצף תווים?",
+    "body": "\n  <p class=\"body-text\"><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">\"cat\" in line</code> בודק <strong class=\"hl2\">רצף תווים</strong> — ולכן ימצא גם את <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">\"category\"</code> ו-<code dir=\"ltr\" style=\"font-family:var(--font-mono)\">\"concatenate\"</code>. כדי לחפש <strong class=\"hl\">מילה שלמה</strong>, מפרקים קודם למילים:</p>\n  <div class=\"grid cols-2\" style=\"margin-top:12px\">\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">\"cat\" in line</span></h3><p>רצף תווים — גם בתוך מילה אחרת</p></div>\n    <div class=\"card green\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">\"cat\" in line.split()</span></h3><p>מילה שלמה — אחד מאיברי הרשימה</p></div>\n  </div>\n  <div class=\"callout tip\" style=\"margin-top:14px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>ולחיפוש בלי תלות באותיות גדולות/קטנות: <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">word.lower() in line.lower()</code>.</p>\n  </div>"
+  },
+  {
+    "type": "code",
+    "eyebrow": "פונקציית חיפוש",
+    "title": "<span class='accent'>find_word</span> מחזירה רשימה",
+    "desc": "עוטפים את החיפוש בפונקציה שמחזירה את מספרי השורות — כך אפשר לעשות איתם עוד דברים:",
+    "setup": "with open(\"story.txt\", \"w\", encoding=\"utf-8\") as f:\n    f.write(\"the cat sat on the mat\\nthe dog ran\\n\\na cat and a dog\\n\")\n",
+    "code": [
+      {
+        "t": "tok-kw",
+        "c": "def"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "find_word"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "filename"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "word"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "found"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "[]"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "filename"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "num"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "enumerate"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "start"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-num",
+        "c": "1"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "            "
+      },
+      {
+        "t": "tok-kw",
+        "c": "if"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "word"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "lower"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "lower"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()."
+      },
+      {
+        "t": "tok-fn",
+        "c": "split"
+      },
+      {
+        "t": "tok-punc",
+        "c": "():"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "                "
+      },
+      {
+        "t": "tok-var",
+        "c": "found"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "append"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "num"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "return"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "found"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-fn",
+        "c": "find_word"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"story.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"dog\""
+      },
+      {
+        "t": "tok-punc",
+        "c": "))"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-fn",
+        "c": "find_word"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"story.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"THE\""
+      },
+      {
+        "t": "tok-punc",
+        "c": "))"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-fn",
+        "c": "find_word"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"story.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"at\""
+      },
+      {
+        "t": "tok-punc",
+        "c": "))"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "[2, 4]\n[1, 2]\n[]"
+  },
+  {
+    "type": "code",
+    "eyebrow": "ניתוח",
+    "title": "שורות, מילים, <span class='accent'>תווים</span>",
+    "desc": "כמו הפקודה wc בלינוקס — שלושה צוברים במעבר אחד על הקובץ:",
+    "setup": "with open(\"story.txt\", \"w\", encoding=\"utf-8\") as f:\n    f.write(\"the cat sat on the mat\\nthe dog ran\\n\\na cat and a dog\\n\")\n",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "lines"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "0"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "words"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "0"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "chars"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "0"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"story.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-var",
+        "c": "lines"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "+="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "1"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-var",
+        "c": "words"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "+="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "len"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "split"
+      },
+      {
+        "t": "tok-punc",
+        "c": "())"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-var",
+        "c": "chars"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "+="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "len"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"שורות:\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "lines"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"מילים:\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "words"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"תווים:\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "chars"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "שורות: 4\nמילים: 14\nתווים: 52"
+  },
+  {
+    "type": "code",
+    "eyebrow": "ניתוח",
+    "title": "המילה <span class='accent'>השכיחה</span> בקובץ",
+    "desc": "תבנית הספירה עם מילון מיחידה 13 — הפעם על קובץ:",
+    "setup": "with open(\"story.txt\", \"w\", encoding=\"utf-8\") as f:\n    f.write(\"the cat sat on the mat\\nthe dog ran\\n\\na cat and a dog\\n\")\n",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "counts"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "{}"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"story.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "w"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "split"
+      },
+      {
+        "t": "tok-punc",
+        "c": "():"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "            "
+      },
+      {
+        "t": "tok-var",
+        "c": "counts"
+      },
+      {
+        "t": "tok-punc",
+        "c": "["
+      },
+      {
+        "t": "tok-var",
+        "c": "w"
+      },
+      {
+        "t": "tok-punc",
+        "c": "]"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "counts"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "get"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "w"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "0"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "+"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "1"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "top"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "max"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "counts"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "key"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-var",
+        "c": "counts"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-var",
+        "c": "get"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "top"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "counts"
+      },
+      {
+        "t": "tok-punc",
+        "c": "["
+      },
+      {
+        "t": "tok-var",
+        "c": "top"
+      },
+      {
+        "t": "tok-punc",
+        "c": "])"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"cat:\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "counts"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "get"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"cat\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "0"
+      },
+      {
+        "t": "tok-punc",
+        "c": "))"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "the 3\ncat: 2"
+  },
+  {
+    "type": "code",
+    "eyebrow": "ניתוח",
+    "title": "השורה <span class='accent'>הארוכה</span> ביותר",
+    "desc": "תבנית המקסימום — שומרים גם את השורה עצמה וגם את המספר שלה:",
+    "setup": "with open(\"story.txt\", \"w\", encoding=\"utf-8\") as f:\n    f.write(\"the cat sat on the mat\\nthe dog ran\\n\\na cat and a dog\\n\")\n",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "longest"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"\""
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "longest_num"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "0"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"story.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "num"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "enumerate"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "start"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-num",
+        "c": "1"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "strip"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-kw",
+        "c": "if"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "len"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "&gt;"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "len"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "longest"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "            "
+      },
+      {
+        "t": "tok-var",
+        "c": "longest"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "            "
+      },
+      {
+        "t": "tok-var",
+        "c": "longest_num"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "num"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "longest_num"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "longest"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "len"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "longest"
+      },
+      {
+        "t": "tok-punc",
+        "c": "))"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "1 the cat sat on the mat 22"
+  },
+  {
+    "type": "exercises",
+    "eyebrow": "תרגול · חיפוש וניתוח",
+    "title": "חוקרים <span class='accent'>קובץ</span>",
+    "desc": "צרו קובץ טקסט עם לפחות 10 שורות (שיר, כתבה, מה שתרצו):",
+    "items": [
+      {
+        "tag": "easy",
+        "text": "בקשו מילה מהמשתמש והדפיסו כמה פעמים היא מופיעה בקובץ."
+      },
+      {
+        "tag": "easy",
+        "text": "הדפיסו כמה שורות ריקות יש בקובץ."
+      },
+      {
+        "tag": "med",
+        "text": "הדפיסו את חמש המילים השכיחות, עם מספר ההופעות של כל אחת."
+      },
+      {
+        "tag": "med",
+        "text": "חשבו את אורך המילה הממוצע בקובץ (בלי סימני פיסוק — <code>strip(\".,!?\")</code>)."
+      }
+    ]
+  },
+  {
+    "type": "code",
+    "eyebrow": "העתקה",
+    "title": "<span class='accent'>מעתיקים</span> קובץ",
+    "desc": "פותחים שני קבצים באותו with — אחד לקריאה ואחד לכתיבה:",
+    "setup": "with open(\"story.txt\", \"w\", encoding=\"utf-8\") as f:\n    f.write(\"the cat sat on the mat\\nthe dog ran\\n\\na cat and a dog\\n\")\n",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"story.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "src"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "\\"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "     "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"copy.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"w\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "dst"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "src"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-var",
+        "c": "dst"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "write"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"copy.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "read"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "=="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"story.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")."
+      },
+      {
+        "t": "tok-fn",
+        "c": "read"
+      },
+      {
+        "t": "tok-punc",
+        "c": "())"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "True"
+  },
+  {
+    "type": "code",
+    "eyebrow": "העתקה עם סינון",
+    "title": "מעתיקים <span class='accent'>רק חלק</span>",
+    "desc": "אותה העתקה — עם if באמצע. כאן: בלי שורות ריקות, וממוספר:",
+    "setup": "with open(\"story.txt\", \"w\", encoding=\"utf-8\") as f:\n    f.write(\"the cat sat on the mat\\nthe dog ran\\n\\na cat and a dog\\n\")\n",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"story.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "src"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "\\"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "     "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"clean.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"w\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "dst"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "n"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "0"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "src"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-kw",
+        "c": "if"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "strip"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "=="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "            "
+      },
+      {
+        "t": "tok-kw",
+        "c": "continue"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-var",
+        "c": "n"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "+="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "1"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-var",
+        "c": "dst"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "write"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-str",
+        "c": "\"{n}. {line}\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"clean.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")."
+      },
+      {
+        "t": "tok-fn",
+        "c": "read"
+      },
+      {
+        "t": "tok-punc",
+        "c": "())"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "1. the cat sat on the mat\n2. the dog ran\n3. a cat and a dog\n"
+  },
+  {
+    "type": "code",
+    "eyebrow": "העתקה עם שינוי",
+    "title": "<span class='accent'>חפש והחלף</span>",
+    "desc": "replace על כל שורה — כמו Ctrl+H בעורך:",
+    "setup": "with open(\"story.txt\", \"w\", encoding=\"utf-8\") as f:\n    f.write(\"the cat sat on the mat\\nthe dog ran\\n\\na cat and a dog\\n\")\n",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"story.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "text"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "read"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "text"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "text"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "replace"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"cat\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"lion\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"story_lion.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"w\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "write"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "text"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "text"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "count"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"lion\""
+      },
+      {
+        "t": "tok-punc",
+        "c": "),"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"החלפות\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "2 החלפות"
+  },
+  {
+    "type": "content",
+    "eyebrow": "זהירות",
+    "title": "לא כותבים <span class='accent'>לאותו קובץ</span> שקוראים",
+    "body": "\n  <p class=\"body-text\">פתיחה של אותו קובץ ב-<code dir=\"ltr\" style=\"font-family:var(--font-mono)\">\"w\"</code> בזמן שקוראים אותו — מוחקת אותו לפני שהספקתם לקרוא. שתי דרכים בטוחות:</p>\n  <div class=\"grid cols-2\" style=\"margin-top:12px\">\n    <div class=\"card blue\"><h3>1. קוראים הכול, ואז כותבים</h3><p><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">text = f.read()</code> → סוגרים → משנים → פותחים ב-\"w\" וכותבים. מתאים לקבצים קטנים.</p></div>\n    <div class=\"card gold\"><h3>2. קובץ חדש</h3><p>כותבים לקובץ אחר (למשל <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">out.txt</code>), ובסוף — אם צריך — מחליפים שם.</p></div>\n  </div>"
+  },
+  {
+    "type": "exercises",
+    "eyebrow": "תרגול · העתקה",
+    "title": "קובץ חדש <span class='accent'>מקובץ ישן</span>",
+    "desc": "",
+    "items": [
+      {
+        "tag": "easy",
+        "text": "העתיקו קובץ לקובץ חדש, כשכל השורות באותיות גדולות."
+      },
+      {
+        "tag": "med",
+        "text": "העתיקו רק את השורות שמכילות מילה שהמשתמש בחר."
+      },
+      {
+        "tag": "med",
+        "text": "כתבו <code>copy_file(src, dst)</code> שמחזירה כמה שורות הועתקו."
+      },
+      {
+        "tag": "hard",
+        "text": "\"הצפנה\": העתיקו קובץ כשכל אות מוחלפת באות שאחריה (a→b, z→a). ואז כתבו פונקציה הפוכה ובדקו שקיבלתם את המקור."
+      }
+    ]
+  },
+  {
+    "type": "content",
+    "eyebrow": "CSV",
+    "title": "טבלה <span class='accent'>בקובץ טקסט</span>",
+    "body": "\n  <p class=\"body-text\"><strong class=\"hl\">CSV</strong> = Comma-Separated Values. כל שורה היא רשומה, והשדות מופרדים בפסיקים. השורה הראשונה היא בדרך כלל <strong class=\"hl2\">כותרות</strong>. אקסל, Google Sheets ומסדי נתונים יודעים לייבא ולייצא CSV.</p>\n  <pre class=\"file\">name,class,grade\nדנה,10,92\nעומר,11,78\nלין,10,85\nרמי,11,51</pre>\n  <div class=\"callout tip\" style=\"margin-top:12px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">line.strip().split(\",\")</code> הופך שורה לרשימה של שדות — ומשם זה כבר כל מה שלמדנו על רשימות.</p>\n  </div>"
+  },
+  {
+    "type": "code",
+    "eyebrow": "קריאת CSV",
+    "title": "שורה → <span class='accent'>שדות</span>",
+    "desc": "מדלגים על שורת הכותרות עם next, ופורסים כל שורה למשתנים:",
+    "setup": "with open(\"students.csv\", \"w\", encoding=\"utf-8\") as f:\n    f.write(\"name,class,grade\\nדנה,10,92\\nעומר,11,78\\nלין,10,85\\nרמי,11,51\\n\")\n",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"students.csv\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "header"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "next"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-var",
+        "c": "name"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "cls"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "grade"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "strip"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()."
+      },
+      {
+        "t": "tok-fn",
+        "c": "split"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\",\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "name"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"| כיתה\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "cls"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"| ציון\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "grade"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "דנה | כיתה 10 | ציון 92\nעומר | כיתה 11 | ציון 78\nלין | כיתה 10 | ציון 85\nרמי | כיתה 11 | ציון 51"
+  },
+  {
+    "type": "code",
+    "eyebrow": "CSV לרשימה",
+    "title": "טוענים את הטבלה <span class='accent'>לזיכרון</span>",
+    "desc": "פונקציה שמחזירה רשימה של טאפלים (יחידה 12) — עם המרה למספרים:",
+    "setup": "with open(\"students.csv\", \"w\", encoding=\"utf-8\") as f:\n    f.write(\"name,class,grade\\nדנה,10,92\\nעומר,11,78\\nלין,10,85\\nרמי,11,51\\n\")\n",
+    "code": [
+      {
+        "t": "tok-kw",
+        "c": "def"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "load_students"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "filename"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "students"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "[]"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "filename"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-fn",
+        "c": "next"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "            "
+      },
+      {
+        "t": "tok-var",
+        "c": "name"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "cls"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "grade"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "strip"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()."
+      },
+      {
+        "t": "tok-fn",
+        "c": "split"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\",\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "            "
+      },
+      {
+        "t": "tok-var",
+        "c": "students"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "append"
+      },
+      {
+        "t": "tok-punc",
+        "c": "(("
+      },
+      {
+        "t": "tok-var",
+        "c": "name"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "int"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "cls"
+      },
+      {
+        "t": "tok-punc",
+        "c": "),"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "int"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "grade"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")))"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "return"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "students"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "data"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "load_students"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"students.csv\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "data"
+      },
+      {
+        "t": "tok-punc",
+        "c": "["
+      },
+      {
+        "t": "tok-num",
+        "c": "0"
+      },
+      {
+        "t": "tok-punc",
+        "c": "])"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"ממוצע:\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "sum"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "s"
+      },
+      {
+        "t": "tok-punc",
+        "c": "["
+      },
+      {
+        "t": "tok-num",
+        "c": "2"
+      },
+      {
+        "t": "tok-punc",
+        "c": "]"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "s"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "data"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "/"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "len"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "data"
+      },
+      {
+        "t": "tok-punc",
+        "c": "))"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "('דנה', 10, 92)\nממוצע: 76.5"
+  },
+  {
+    "type": "code",
+    "eyebrow": "קיבוץ",
+    "title": "ממוצע <span class='accent'>לכל כיתה</span>",
+    "desc": "מילון של כיתה → רשימת ציונים (יחידה 13), ואז ממוצע לכל מפתח:",
+    "setup": "with open(\"students.csv\", \"w\", encoding=\"utf-8\") as f:\n    f.write(\"name,class,grade\\nדנה,10,92\\nעומר,11,78\\nלין,10,85\\nרמי,11,51\\n\")\n",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "by_class"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "{}"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"students.csv\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-fn",
+        "c": "next"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-var",
+        "c": "name"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "cls"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "grade"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "strip"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()."
+      },
+      {
+        "t": "tok-fn",
+        "c": "split"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\",\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-kw",
+        "c": "if"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "cls"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "not"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "by_class"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "            "
+      },
+      {
+        "t": "tok-var",
+        "c": "by_class"
+      },
+      {
+        "t": "tok-punc",
+        "c": "["
+      },
+      {
+        "t": "tok-var",
+        "c": "cls"
+      },
+      {
+        "t": "tok-punc",
+        "c": "]"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "[]"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-var",
+        "c": "by_class"
+      },
+      {
+        "t": "tok-punc",
+        "c": "["
+      },
+      {
+        "t": "tok-var",
+        "c": "cls"
+      },
+      {
+        "t": "tok-punc",
+        "c": "]."
+      },
+      {
+        "t": "tok-fn",
+        "c": "append"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-fn",
+        "c": "int"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "grade"
+      },
+      {
+        "t": "tok-punc",
+        "c": "))"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "cls"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "grades"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "by_class"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "items"
+      },
+      {
+        "t": "tok-punc",
+        "c": "():"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"כיתה\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "cls"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\":\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "sum"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "grades"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "/"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "len"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "grades"
+      },
+      {
+        "t": "tok-punc",
+        "c": "))"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "כיתה 10 : 88.5\nכיתה 11 : 64.5"
+  },
+  {
+    "type": "code",
+    "eyebrow": "כתיבת CSV",
+    "title": "כותבים <span class='accent'>טבלה</span>",
+    "desc": "join מחבר את השדות בפסיקים. את הקובץ אפשר לפתוח ישר באקסל:",
+    "setup": "with open(\"students.csv\", \"w\", encoding=\"utf-8\") as f:\n    f.write(\"name,class,grade\\nדנה,10,92\\nעומר,11,78\\nלין,10,85\\nרמי,11,51\\n\")\n",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"students.csv\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "src"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "\\"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "     "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"passed.csv\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"w\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "dst"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "dst"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "write"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-fn",
+        "c": "next"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "src"
+      },
+      {
+        "t": "tok-punc",
+        "c": "))"
+      },
+      {
+        "t": "",
+        "c": "                    "
+      },
+      {
+        "t": "tok-com",
+        "c": "# מעתיקים את הכותרות"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "src"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-var",
+        "c": "fields"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "strip"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()."
+      },
+      {
+        "t": "tok-fn",
+        "c": "split"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\",\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-kw",
+        "c": "if"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "int"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "fields"
+      },
+      {
+        "t": "tok-punc",
+        "c": "["
+      },
+      {
+        "t": "tok-num",
+        "c": "2"
+      },
+      {
+        "t": "tok-punc",
+        "c": "])"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "&gt;="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "56"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "            "
+      },
+      {
+        "t": "tok-var",
+        "c": "dst"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "write"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\",\""
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "join"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "fields"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "+"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"\\n\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"passed.csv\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")."
+      },
+      {
+        "t": "tok-fn",
+        "c": "read"
+      },
+      {
+        "t": "tok-punc",
+        "c": "())"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "name,class,grade\nדנה,10,92\nעומר,11,78\nלין,10,85\n"
+  },
+  {
+    "type": "content",
+    "eyebrow": "להעשרה",
+    "title": "המודול <span class='accent'>csv</span>",
+    "body": "\n  <p class=\"body-text\"><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">split(\",\")</code> נשבר כשיש פסיק <strong class=\"hl2\">בתוך</strong> שדה — למשל כתובת <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">\"ירכא, הגליל\"</code>. לפייתון יש מודול מוכן שמטפל בזה:</p>\n  <div class=\"grid cols-2\" style=\"margin-top:12px\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">import csv</span></h3><p><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">for row in csv.reader(f):</code><br>כל row היא כבר רשימה של שדות</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">csv.DictReader(f)</span></h3><p>כל שורה היא מילון: <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">row[\"grade\"]</code><br>לפי שם העמודה מהכותרת</p></div>\n  </div>\n  <div class=\"callout tip\" style=\"margin-top:14px\"><svg class=\"icon\" viewBox=\"0 0 24 24\"><use href=\"#ic-bulb\"/></svg>\n    <p>בקורס (ובמבחן) מספיק <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">split</code>. בעבודה אמיתית עם CSV — <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">csv</code>.</p>\n  </div>"
+  },
+  {
+    "type": "code",
+    "eyebrow": "דוח",
+    "title": "כותבים <span class='accent'>דוח</span> לקובץ",
+    "desc": "f-string עם רוחב קבוע (:<8, :>5) מיישר עמודות בקובץ טקסט:",
+    "setup": "with open(\"students.csv\", \"w\", encoding=\"utf-8\") as f:\n    f.write(\"name,class,grade\\nדנה,10,92\\nעומר,11,78\\nלין,10,85\\nרמי,11,51\\n\")\n",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"students.csv\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-fn",
+        "c": "next"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "rows"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "["
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "strip"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()."
+      },
+      {
+        "t": "tok-fn",
+        "c": "split"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\",\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": "]"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"report.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"w\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "out"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "out"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "write"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"Name     Grade  Status\\n\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "name"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "cls"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "grade"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "rows"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-var",
+        "c": "status"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"PASS\""
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "if"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "int"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "grade"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "&gt;="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "56"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "else"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"FAIL\""
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-var",
+        "c": "out"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "write"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-str",
+        "c": "\"{name:&lt;8} {grade:&gt;5}  {status}\\n\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"report.txt\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")."
+      },
+      {
+        "t": "tok-fn",
+        "c": "read"
+      },
+      {
+        "t": "tok-punc",
+        "c": "())"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "Name     Grade  Status\nדנה         92  PASS\nעומר        78  PASS\nלין         85  PASS\nרמי         51  FAIL\n"
+  },
+  {
+    "type": "content",
+    "eyebrow": "סיכום הקורס",
+    "title": "פרויקט קטן: <span class='accent'>מערכת ציונים</span>",
+    "body": "\n  <p class=\"body-text\">תכנית אחת שמשתמשת בכל מה שלמדנו השנה:</p>\n  <div class=\"grid cols-3\" style=\"margin-top:10px\">\n    <div class=\"card blue\"><h3>קבצים</h3><p>טוענים את <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">students.csv</code> בהתחלה, שומרים בסוף</p></div>\n    <div class=\"card gold\"><h3>פונקציות</h3><p><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">load</code>, <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">save</code>, <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">add</code>, <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">report</code> — כל אחת תפקיד אחד</p></div>\n    <div class=\"card green\"><h3>מילון</h3><p>שם → ציון, לחיפוש ועדכון מהיר</p></div>\n    <div class=\"card violet\"><h3>לולאה + תנאים</h3><p>תפריט: 1 הוספה, 2 חיפוש, 3 דוח, 0 יציאה</p></div>\n    <div class=\"card coral\"><h3>רשימה + מיון</h3><p>דוח ממוין מהציון הגבוה לנמוך</p></div>\n    <div class=\"card blue\"><h3>מחרוזות</h3><p><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">split</code>, <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">strip</code>, <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">join</code>, f-string</p></div>\n  </div>"
+  },
+  {
+    "type": "code",
+    "eyebrow": "שלד הפרויקט · 1",
+    "title": "טעינה <span class='accent'>ושמירה</span>",
+    "desc": "load קוראת את ה-CSV למילון של שם → (כיתה, ציון). save כותבת את המילון בחזרה:",
+    "setup": "with open(\"students.csv\", \"w\", encoding=\"utf-8\") as f:\n    f.write(\"name,class,grade\\nדנה,10,92\\nעומר,11,78\\nלין,10,85\\nרמי,11,51\\n\")\n",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "FILE"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"students.csv\""
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-kw",
+        "c": "def"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "load"
+      },
+      {
+        "t": "tok-punc",
+        "c": "():"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "grades"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "{}"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "FILE"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-fn",
+        "c": "next"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "            "
+      },
+      {
+        "t": "tok-var",
+        "c": "name"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "cls"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "grade"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "line"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "strip"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()."
+      },
+      {
+        "t": "tok-fn",
+        "c": "split"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\",\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "            "
+      },
+      {
+        "t": "tok-var",
+        "c": "grades"
+      },
+      {
+        "t": "tok-punc",
+        "c": "["
+      },
+      {
+        "t": "tok-var",
+        "c": "name"
+      },
+      {
+        "t": "tok-punc",
+        "c": "]"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "cls"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "int"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "grade"
+      },
+      {
+        "t": "tok-punc",
+        "c": "))"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-kw",
+        "c": "return"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "grades"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-kw",
+        "c": "def"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "save"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "grades"
+      },
+      {
+        "t": "tok-punc",
+        "c": "):"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "    "
+      },
+      {
+        "t": "tok-var",
+        "c": "with"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "open"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "FILE"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"w\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "encoding"
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "tok-str",
+        "c": "\"utf-8\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "as"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": ":"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "write"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"name,class,grade\\n\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "        "
+      },
+      {
+        "t": "tok-kw",
+        "c": "for"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "name"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "cls"
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "grade"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-kw",
+        "c": "in"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-var",
+        "c": "grades"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "items"
+      },
+      {
+        "t": "tok-punc",
+        "c": "():"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "            "
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-punc",
+        "c": "."
+      },
+      {
+        "t": "tok-fn",
+        "c": "write"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "f"
+      },
+      {
+        "t": "tok-str",
+        "c": "\"{name},{cls},{grade}\\n\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      }
+    ]
+  },
+  {
+    "type": "code",
+    "eyebrow": "שלד הפרויקט · 2",
+    "title": "מתחילים <span class='accent'>מכאן</span>",
+    "desc": "השלד עובד: טוענים, משנים, שומרים — וההרצה הבאה כבר רואה את השינוי. השלימו פונקציות add ו-report ותפריט בלולאה:",
+    "setup": "with open(\"students.csv\", \"w\", encoding=\"utf-8\") as f:\n    f.write(\"name,class,grade\\nדנה,10,92\\nעומר,11,78\\nלין,10,85\\nרמי,11,51\\n\")\n\nFILE = \"students.csv\"\n\ndef load():\n    grades = {}\n    with open(FILE, encoding=\"utf-8\") as f:\n        next(f)\n        for line in f:\n            name, cls, grade = line.strip().split(\",\")\n            grades[name] = (cls, int(grade))\n    return grades\n\ndef save(grades):\n    with open(FILE, \"w\", encoding=\"utf-8\") as f:\n        f.write(\"name,class,grade\\n\")\n        for name, (cls, grade) in grades.items():\n            f.write(f\"{name},{cls},{grade}\\n\")\n",
+    "code": [
+      {
+        "t": "tok-var",
+        "c": "grades"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-fn",
+        "c": "load"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-var",
+        "c": "grades"
+      },
+      {
+        "t": "tok-punc",
+        "c": "["
+      },
+      {
+        "t": "tok-str",
+        "c": "\"נור\""
+      },
+      {
+        "t": "tok-punc",
+        "c": "]"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "="
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-str",
+        "c": "\"10\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ","
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-num",
+        "c": "88"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "save"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-var",
+        "c": "grades"
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-fn",
+        "c": "len"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-fn",
+        "c": "load"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()),"
+      },
+      {
+        "t": "",
+        "c": " "
+      },
+      {
+        "t": "tok-str",
+        "c": "\"תלמידים בקובץ\""
+      },
+      {
+        "t": "tok-punc",
+        "c": ")"
+      },
+      {
+        "t": "",
+        "c": "\n"
+      },
+      {
+        "t": "tok-fn",
+        "c": "print"
+      },
+      {
+        "t": "tok-punc",
+        "c": "("
+      },
+      {
+        "t": "tok-fn",
+        "c": "load"
+      },
+      {
+        "t": "tok-punc",
+        "c": "()["
+      },
+      {
+        "t": "tok-str",
+        "c": "\"נור\""
+      },
+      {
+        "t": "tok-punc",
+        "c": "])"
+      }
+    ],
+    "outLabel": "פלט:",
+    "outText": "5 תלמידים בקובץ\n('10', 88)"
+  },
+  {
+    "type": "content",
+    "eyebrow": "טעויות נפוצות",
+    "title": "ארבע מלכודות <span class='accent'>בעיבוד קבצים</span>",
+    "body": "\n  <div class=\"grid cols-2\">\n    <div class=\"card coral\"><h3>שוכחים את הכותרת</h3><p><code dir=\"ltr\" style=\"font-family:var(--font-mono)\">int(\"grade\")</code> → ValueError. מדלגים עם <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">next(f)</code>.</p></div>\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">\"cat\" in line</span></h3><p>מוצא גם \"category\". למילה שלמה — <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">in line.split()</code>.</p></div>\n    <div class=\"card gold\"><h3>קריאה + \"w\" לאותו קובץ</h3><p>הקובץ נמחק לפני שנקרא. קוראים הכול קודם, או כותבים לקובץ חדש.</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">split(\",\")</span></h3><p>בלי <code dir=\"ltr\" style=\"font-family:var(--font-mono)\">strip</code> לפני — לשדה האחרון נשאר \\n.</p></div>\n  </div>"
+  },
+  {
+    "type": "exercises",
+    "eyebrow": "תרגול · חלק א׳",
+    "title": "משימות — <span class='accent'>רמה קלה</span>",
+    "desc": "",
+    "items": [
+      {
+        "tag": "easy",
+        "text": "בקשו שם קובץ ומילה, והדפיסו \"נמצא\" או \"לא נמצא\"."
+      },
+      {
+        "tag": "easy",
+        "text": "הדפיסו את מספר השורות, המילים והתווים של קובץ שהמשתמש בחר."
+      },
+      {
+        "tag": "easy",
+        "text": "קראו את <code>students.csv</code> והדפיסו רק את שמות התלמידים."
+      },
+      {
+        "tag": "easy",
+        "text": "העתיקו קובץ לקובץ גיבוי ששמו כמו המקור עם <code>.bak</code> בסוף."
+      }
+    ]
+  },
+  {
+    "type": "exercises",
+    "eyebrow": "תרגול · חלק ב׳",
+    "title": "משימות — <span class='accent'>רמה בינונית</span>",
+    "desc": "",
+    "items": [
+      {
+        "tag": "med",
+        "text": "מ-<code>students.csv</code>: הדפיסו את המצטיין בכל כיתה."
+      },
+      {
+        "tag": "med",
+        "text": "השוואת קבצים: הדפיסו את מספר השורה הראשונה שבה שני קבצים שונים, או \"זהים\"."
+      },
+      {
+        "tag": "med",
+        "text": "קובץ הוצאות <code>date,category,amount</code>. הדפיסו את סך ההוצאות לכל קטגוריה, ממוין מהגבוה."
+      },
+      {
+        "tag": "med",
+        "text": "פצלו קובץ CSV לשני קבצים לפי עמודה: <code>class_10.csv</code> ו-<code>class_11.csv</code> (עם הכותרת בכל אחד)."
+      }
+    ]
+  },
+  {
+    "type": "exercises",
+    "eyebrow": "תרגול · חלק ג׳",
+    "title": "משימות — <span class='accent'>רמה מאתגרת</span>",
+    "desc": "",
+    "items": [
+      {
+        "tag": "hard",
+        "text": "השלימו את פרויקט מערכת הציונים: תפריט בלולאה, הוספה, חיפוש, מחיקה, דוח ממוין לקובץ, ושמירה ביציאה."
+      },
+      {
+        "tag": "hard",
+        "text": "אינדקס מילים: בנו מילון של מילה → רשימת מספרי השורות שבהן היא מופיעה, וכתבו אותו לקובץ <code>index.txt</code> בסדר אלפביתי."
+      },
+      {
+        "tag": "hard",
+        "text": "ניתוח יומן שרת: קובץ שבו כל שורה \"שעה IP סטטוס\". הדפיסו את 3 כתובות ה-IP עם הכי הרבה שגיאות (סטטוס 404 או 500)."
+      },
+      {
+        "tag": "hard",
+        "text": "ממירים CSV לטבלת HTML: כתבו קובץ <code>table.html</code> עם <code>&lt;table&gt;</code>, שורת כותרות ושורה לכל רשומה, ופתחו בדפדפן."
+      }
+    ]
+  },
+  {
+    "type": "exercises",
+    "eyebrow": "בדיקה עצמית",
+    "title": "שאלות <span class='accent'>חזרה</span> מהירות",
+    "desc": "בלי לגלול אחורה — כמה מהן אתם זוכרים?",
+    "items": [
+      {
+        "tag": "easy",
+        "text": "מה ההבדל בין <code>\"cat\" in line</code> ל-<code>\"cat\" in line.split()</code>?"
+      },
+      {
+        "tag": "easy",
+        "text": "מה זה קובץ CSV, ומה תפקיד השורה הראשונה?"
+      },
+      {
+        "tag": "med",
+        "text": "איך מדלגים על שורת הכותרות?"
+      },
+      {
+        "tag": "med",
+        "text": "איך פותחים שני קבצים באותו with?"
+      },
+      {
+        "tag": "med",
+        "text": "למה <code>split(\",\")</code> עלול להיכשל, ומה הפתרון?"
+      },
+      {
+        "tag": "hard",
+        "text": "איך משנים קובץ \"במקום\" בלי לאבד את התוכן שלו?"
+      }
+    ]
+  },
+  {
+    "type": "content",
+    "eyebrow": "לפני שסוגרים",
+    "title": "שישה דברים <span class='accent'>לזכור</span> מהיום",
+    "body": "\n  <div class=\"grid cols-3\">\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">enumerate(f, start=1)</span></h3><p>מספרי שורות לחיפוש ולהודעות שגיאה</p></div>\n    <div class=\"card gold\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">w in line.split()</span></h3><p>חיפוש מילה שלמה</p></div>\n    <div class=\"card green\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">with open(a) as s, open(b, \"w\") as d:</span></h3><p>העתקה וסינון — שני קבצים יחד</p></div>\n    <div class=\"card violet\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">next(f)</span></h3><p>דילוג על שורת הכותרות ב-CSV</p></div>\n    <div class=\"card coral\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">line.strip().split(\",\")</span></h3><p>שורת CSV → רשימת שדות</p></div>\n    <div class=\"card blue\"><h3 style=\"font-family:var(--font-mono)\"><span dir=\"ltr\">\",\".join(fields)</span></h3><p>רשימת שדות → שורת CSV</p></div>\n  </div>"
+  },
+  {
+    "type": "title",
+    "kicker": "סיום הקורס",
+    "title": "מ-<span class=\"py-mark\">print(\"Hello\")</span> ועד <span class=\"py-mark2\">מערכת שלמה</span>",
+    "sub": "משתנים, תנאים, לולאות, רשימות, פונקציות, מילונים וקבצים — כל הכלים לבנות תכניות אמיתיות. בהצלחה במבחן!",
+    "prompt": ">>> print(\"סיימתי את הקורס!\") <span class=\"caret\"></span>"
+  }
+];
+
+
+/* ============================================================
+   RENDER ENGINE — shared across all decks in this course.
+   Reads the SLIDES data array above and builds the DOM.
+   ============================================================ */
+function esc(s){ return String(s); } // content is authored HTML on purpose (icons, spans)
+
+function renderCode(tokens){
+  return tokens.map(tk => tk.t ? `<span class="${tk.t}">${tk.c}</span>` : tk.c).join("");
+}
+
+function buildSlide(s, i){
+  const el = document.createElement("section");
+  el.className = "slide";
+  el.dataset.index = i;
+
+  if(s.type === "title"){
+    el.classList.add("title-slide");
+    el.innerHTML = `
+      <div class="kicker">${s.kicker}</div>
+      <h1>${s.title}</h1>
+      <p>${s.sub}</p>
+      <div class="prompt-line">${s.prompt}</div>
+    `;
+  } else if(s.type === "content"){
+    el.innerHTML = `
+      <div class="eyebrow"><span class="dot"></span>${s.eyebrow}</div>
+      <h1 class="slide-title">${s.title}</h1>
+      ${s.body}
+    `;
+  } else if(s.type === "code"){
+    el.innerHTML = `
+      <div class="eyebrow"><span class="dot"></span>${s.eyebrow}</div>
+      <h1 class="slide-title">${s.title}</h1>
+      ${s.desc ? `<p class="body-text" style="margin-bottom:16px">${s.desc}</p>` : ""}
+      <div class="codewrap">
+        <div class="chead"><b>&gt;_</b> example.py</div>
+        <pre class="code">${renderCode(s.code)}</pre>
+      </div>
+      ${s.outText ? `
+      <div class="outwrap" style="margin-top:14px">
+        <div class="ohead">${s.outLabel || "פלט:"}</div>
+        <div class="obody">${s.outText}</div>
+      </div>` : ""}
+    `;
+  } else if(s.type === "exercises"){
+    el.innerHTML = `
+      <div class="eyebrow"><span class="dot"></span>${s.eyebrow}</div>
+      <h1 class="slide-title">${s.title}</h1>
+      ${s.desc ? `<p class="body-text" style="margin-bottom:6px">${s.desc}</p>` : ""}
+      <ul class="exlist">
+        ${s.items.map((it, idx) => `
+          <li>
+            <span class="tag ${it.tag}">${it.tag === "easy" ? "קל" : it.tag === "med" ? "בינוני" : "מאתגר"}</span>
+            <span class="exbody">${it.text}</span>
+            <span class="exnum">${idx+1}</span>
+          </li>
+        `).join("")}
+      </ul>
+    `;
+  }
+  return el;
+}
+
+(function initDeck(){
+  const viewport = document.getElementById("viewport");
+  const dotsNav = document.getElementById("dotsNav");
+  const fill = document.getElementById("progressFill");
+  const pgCur = document.getElementById("pg-cur");
+  const pgTotal = document.getElementById("pg-total");
+  const tbName = document.getElementById("tb-name");
+  if(tbName) tbName.textContent = (typeof FILE_NAME !== "undefined" ? FILE_NAME : "deck.py");
+
+  let cur = 0;
+  const n = SLIDES.length;
+  pgTotal.textContent = n;
+
+  SLIDES.forEach((s, i) => {
+    viewport.appendChild(buildSlide(s, i));
+    const dot = document.createElement("button");
+    dot.setAttribute("aria-label", "שקופית " + (i+1));
+    dot.addEventListener("click", () => go(i));
+    dotsNav.appendChild(dot);
+  });
+  const slideEls = Array.from(viewport.children);
+  const dotEls = Array.from(dotsNav.children);
+
+  function go(i){
+    cur = Math.max(0, Math.min(n-1, i));
+    slideEls.forEach((el, idx) => el.classList.toggle("active", idx === cur));
+    dotEls.forEach((el, idx) => el.classList.toggle("on", idx === cur));
+    fill.style.width = (n <= 1 ? 100 : (cur/(n-1))*100) + "%";
+    pgCur.textContent = cur + 1;
+  }
+  go(0);
+
+  document.getElementById("btnNext").addEventListener("click", () => go(cur+1));
+  document.getElementById("btnPrev").addEventListener("click", () => go(cur-1));
+  document.getElementById("btnFs").addEventListener("click", () => {
+    if(!document.fullscreenElement){ document.documentElement.requestFullscreen().catch(()=>{}); }
+    else { document.exitFullscreen().catch(()=>{}); }
+  });
+
+  window.addEventListener("keydown", (e) => {
+    if(["ArrowRight","PageDown"," ","Spacebar"].includes(e.key)){ go(cur+1); e.preventDefault(); }
+    else if(["ArrowLeft","PageUp"].includes(e.key)){ go(cur-1); e.preventDefault(); }
+    else if(e.key === "Home"){ go(0); e.preventDefault(); }
+    else if(e.key === "End"){ go(n-1); e.preventDefault(); }
+    else if(e.key === "f" || e.key === "F"){ document.getElementById("btnFs").click(); }
+  });
+
+  let touchX = null;
+  viewport.addEventListener("touchstart", (e) => { touchX = e.touches[0].clientX; }, {passive:true});
+  viewport.addEventListener("touchend", (e) => {
+    if(touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    if(Math.abs(dx) > 50){ go(dx < 0 ? cur+1 : cur-1); }
+    touchX = null;
+  }, {passive:true});
+})();
+
+function fitTallSlides(){
+  const SAFE = 44;   // keep clear of the nav dots / buttons at the bottom
+  document.querySelectorAll('.slide').forEach(sl => {
+    if (!sl.clientHeight) return;
+    const over = () => {   // does the content end below the safe area?
+      const top = sl.getBoundingClientRect().top;
+      const bottom = Math.max(...[...sl.children].map(c => c.getBoundingClientRect().bottom));
+      return bottom - top > sl.clientHeight - SAFE;
+    };
+    const code = sl.querySelector('.codewrap'), out = sl.querySelector('.outwrap');
+    if (!over()) return;
+    if (!code) {           // text slides: zoom the content out a little
+      let z = 1;
+      while (over() && z > 0.8) { z -= 0.02; [...sl.children].forEach(c => c.style.zoom = z); }
+      return;
+    }
+    if (out) {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:grid;grid-template-columns:1.45fr 1fr;gap:16px;align-items:start;direction:ltr';
+      code.before(row); row.append(code, out); out.style.marginTop = '0';
+    }
+    const els = sl.querySelectorAll('pre.code, .obody');
+    let fs = 14.5;
+    while (over() && fs > 10.5) { fs -= 0.5; els.forEach(e => { e.style.fontSize = fs + 'px'; e.style.lineHeight = '1.55'; }); }
+  });
+}
+window.addEventListener('load', () => (document.fonts ? document.fonts.ready : Promise.resolve()).then(fitTallSlides));
+</script>

@@ -21,6 +21,13 @@
 | 6 | ביטויים בוליאניים ותנאים (if) | [פתח](https://ahmadkais.github.io/python-course-hebrew/presentations/html/06_unit6_boolean_if.html) | — |
 | 7 | לולאות (for, while), פירוק מספר לספרות | [פתח](https://ahmadkais.github.io/python-course-hebrew/presentations/html/07_unit7_loops.html) | — |
 | 8 | אופרטורים לוגיים וסיביים | [פתח](https://ahmadkais.github.io/python-course-hebrew/presentations/html/08_unit8_logical_bitwise.html) | — |
+| 9 | רשימות (Lists), איברים סמוכים ורשימת מונים | [פתח](https://ahmadkais.github.io/python-course-hebrew/presentations/html/09_unit9_lists.html) | — |
+| 10 | מיון רשימות | [פתח](https://ahmadkais.github.io/python-course-hebrew/presentations/html/10_unit10_sorting.html) | — |
+| 11 | פונקציות | [פתח](https://ahmadkais.github.io/python-course-hebrew/presentations/html/11_unit11_functions.html) | — |
+| 12 | Tuple – טאפלים | [פתח](https://ahmadkais.github.io/python-course-hebrew/presentations/html/12_unit12_tuples.html) | — |
+| 13 | מילונים (Dictionaries) | [פתח](https://ahmadkais.github.io/python-course-hebrew/presentations/html/13_unit13_dictionaries.html) | — |
+| 14 | עיבוד קבצים | [פתח](https://ahmadkais.github.io/python-course-hebrew/presentations/html/14_unit14_files.html) | — |
+| 15 | עבודה מתקדמת עם קבצים | [פתח](https://ahmadkais.github.io/python-course-hebrew/presentations/html/15_unit15_files_advanced.html) | — |
 | ★ | סיכום יחידות 0–5 | [פתח](https://ahmadkais.github.io/python-course-hebrew/presentations/html/summary_units_0-5.html) | — |
 
 ## 🎯 הכנה לבחינה – שאלון 735911 (לפי ההנחיות של תשפ"ז)
