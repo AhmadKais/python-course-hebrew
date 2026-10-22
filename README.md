@@ -46,6 +46,7 @@
 | חומר | HTML | PDF |
 |------|------|-----|
 | תרגול – יחידות 0–6 (עד if-else) | [פתח](https://ahmadkais.github.io/python-course-hebrew/study_materials/practice_units_0-6_if_else.html) | [הורד](study_materials/practice_units_0-6_if_else_latex.pdf) |
+| תרגול – יחידות 7–15 (לולאות, רשימות, מיון, פונקציות, tuple, מילונים, קבצים), 113 שאלות עם מפתח תשובות | [פתח](https://ahmadkais.github.io/python-course-hebrew/study_materials/practice_units_7-15.html) | [הורד](study_materials/practice_units_7-15.pdf) |
 | מדריך מונחים לבחינה – עברית / ערבית / אנגלית | [פתח](https://ahmadkais.github.io/python-course-hebrew/study_materials/exam_glossary_he_ar_en.html) | [הורד](study_materials/exam_glossary_he_ar_en.pdf) |
 
 ## 🗓️ תוכנית הקורס (Syllabus)
